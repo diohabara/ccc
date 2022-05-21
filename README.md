@@ -17,7 +17,7 @@ make lint
 When you want to see if the compiler is working,
 
 ```bash
-make debug
+make test
 ```
 
 When you debug something about the testing,
