@@ -1,0 +1,10 @@
+*
+**/*
+!LICENSE
+!.devcontainer
+!.clang-format
+!README.md
+!*.c
+!.gitignore
+!*.sh
+!Makefile
