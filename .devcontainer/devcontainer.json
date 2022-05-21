@@ -12,7 +12,8 @@
   },
   // Set *default* container specific settings.json values on container create.
   "settings": {
-    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 2, ColumnLimit: 0}"
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 2, ColumnLimit: 0}",
+    "editor.formatOnSave": true
   },
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [],
