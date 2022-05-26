@@ -16,12 +16,12 @@ assert() {
 	fi
 }
 
-# step1
+# step1(a single number)
 assert 0 0
 assert 42 42
-# step2
+# step2(add/subtract numbers)
 assert 21 "5+20-4"
-# step3
+# step3(tokenizer)
 assert 41 " 12 + 34 - 5 "
 
 echo OK
