@@ -32,6 +32,16 @@ void error(char* fmt, ...) {
   exit(1);
 }
 
+// print with indents
+void dprintf(int depth, char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  for (int i = 0; i < depth; i++) {
+    printf("\t");
+  }
+  vfprintf(stdout, fmt, ap);
+}
+
 // if the next token is an expected symbol, read through to the next token
 // return true if so. otherwise, return false
 bool consume(char op) {
@@ -111,18 +121,18 @@ int main(int argc, char** argv) {
   printf("main:\n");
 
   // the first element of an expression must be number
-  printf("\tmov rax, %d\n", expect_number());
+  dprintf(1, "mov rax, %d\n", expect_number());
 
   // consume `+`, `-`, or `number` and output assembly
   while (!at_eof()) {
     if (consume('+')) {
-      printf("\tadd rax, %d\n", expect_number());
+      dprintf(1, "add rax, %d\n", expect_number());
       continue;
     }
 
     expect('-');
-    printf("\tsub rax, %d\n", expect_number());
+    dprintf(1, "sub rax, %d\n", expect_number());
   }
-  printf("\tret\n");
+  dprintf(1, "ret\n");
   return 0;
 }
