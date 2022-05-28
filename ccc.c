@@ -22,6 +22,22 @@ struct Token {
 
 // currently focused on token
 Token* token;
+// input program
+char* user_input;
+
+// report where an error happens
+void error_at(char* loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s", pos, " "); // output `pos` blanks
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
 
 // report errors
 void error(char* fmt, ...) {
