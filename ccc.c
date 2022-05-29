@@ -18,6 +18,7 @@ struct Token {
   Token* next;
   int val;    // value if it's integer token
   char* str;  // token string
+  int len;    // the length of a token
 };
 
 // currently focused on token
@@ -48,7 +49,7 @@ void error(char* fmt, ...) {
   exit(1);
 }
 
-// print with indents
+// print with an indent
 void iprintf(char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -60,8 +61,9 @@ void iprintf(char* fmt, ...) {
 
 // if the next token is an expected symbol, read through to the next token
 // return true if so. otherwise, return false
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op) {
+bool consume(char* op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len)) {
     return false;
   }
   token = token->next;
@@ -70,9 +72,10 @@ bool consume(char op) {
 
 // if the next token is an expected symbol, read through to the next token
 // return true if so. otherwise, return false
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op) {
-    error("Token is not '%c'", op);
+void expect(char* op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len)) {
+    error_at(token->str, "expected \"%s\"", op);
   }
   token = token->next;
 }
@@ -91,13 +94,16 @@ int expect_number() {
 bool at_eof() { return token->kind == TK_EOF; }
 
 // create another token and connect it to `cur`
-Token* new_token(TokenKind kind, Token* cur, char* str) {
+Token* new_token(TokenKind kind, Token* cur, char* str, int len) {
   Token* tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   cur->next = tok;
   return tok;
 }
+
+bool startswith(char* p, char* q) { return memcmp(p, q, strlen(q)) == 0; }
 
 // tokenize input `p`
 Token* tokenize(char* p) {
@@ -109,18 +115,29 @@ Token* tokenize(char* p) {
       p++;
       continue;
     }
-    if (strchr("+-*/()", *p)) {
-      cur = new_token(TK_RESERVED, cur, p++);
+    // multi-char punctuator
+    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, ">=") ||
+        startswith(p, "<=")) {
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
+      continue;
+    }
+    // single-char punctuator
+    if (strchr("+-*/()<>", *p)) {
+      cur = new_token(TK_RESERVED, cur, p, 1);
+      p++;
       continue;
     }
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p);
+      cur = new_token(TK_NUM, cur, p, 0);
+      char* q = p;
       cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
     error("There is no tokenizing");
   }
-  new_token(TK_EOF, cur, p);
+  new_token(TK_EOF, cur, p, 0);
   return head.next;
 }
 
@@ -132,6 +149,10 @@ typedef enum {
   ND_MUL,  // *
   ND_DIV,  // /
   ND_NUM,  // integer
+  ND_EQ,   // ==
+  ND_NE,   // !=
+  ND_LT,   // <
+  ND_LE,   // <=
 } NodeKind;
 
 typedef struct Node Node;
@@ -143,11 +164,6 @@ struct Node {
   Node* rhs;
   int val;  // used when it's an integer
 };
-// function declarations
-Node* expr();
-Node* mul();
-Node* unary();
-Node* primary();
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   Node* node = calloc(1, sizeof(Node));
@@ -164,14 +180,60 @@ Node* new_node_num(int val) {
   return node;
 }
 
-// expr = mul ("+" mul | "-" mul)*
-Node* expr() {
+// function declarations
+Node* expr();
+Node* equality();
+Node* relational();
+Node* add();
+Node* mul();
+Node* unary();
+Node* primary();
+
+// expr = equality
+Node* expr() { return equality(); }
+
+// equality = relational ("==" relational | "!=" relational)*
+Node* equality() {
+  Node* node = relational();
+
+  for (;;) {
+    if (consume("==")) {
+      node = new_node(ND_EQ, node, relational());
+    } else if (consume("!=")) {
+      node = new_node(ND_NE, node, relational());
+    } else {
+      return node;
+    }
+  }
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+Node* relational() {
+  Node* node = add();
+
+  for (;;) {
+    if (consume("<")) {
+      node = new_node(ND_LT, node, add());
+    } else if (consume("<=")) {
+      node = new_node(ND_LE, node, add());
+    } else if (consume(">")) {
+      node = new_node(ND_LT, add(), node);
+    } else if (consume(">=")) {
+      node = new_node(ND_LE, add(), node);
+    } else {
+      return node;
+    }
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+Node* add() {
   Node* node = mul();
 
   for (;;) {
-    if (consume('+')) {
+    if (consume("+")) {
       node = new_node(ND_ADD, node, mul());
-    } else if (consume('-')) {
+    } else if (consume("-")) {
       node = new_node(ND_SUB, node, mul());
     } else {
       return node;
@@ -184,9 +246,9 @@ Node* mul() {
   Node* node = unary();
 
   for (;;) {
-    if (consume('*')) {
+    if (consume("*")) {
       node = new_node(ND_MUL, node, unary());
-    } else if (consume('/')) {
+    } else if (consume("/")) {
       node = new_node(ND_DIV, node, unary());
     } else {
       return node;
@@ -196,10 +258,9 @@ Node* mul() {
 
 // unary = ("+" | "-")? primary
 Node* unary() {
-  if (consume('+')) {
+  if (consume("+")) {
     return unary();
-  }
-  if (consume('-')) {
+  } else if (consume("-")) {
     return new_node(ND_SUB, new_node_num(0), unary());
   }
   return primary();
@@ -207,9 +268,9 @@ Node* unary() {
 
 // primary = "(" expr ")" | num
 Node* primary() {
-  if (consume('(')) {
+  if (consume("(")) {
     Node* node = expr();
-    expect(')');
+    expect(")");
     return node;
   }
   return new_node_num(expect_number());
@@ -241,6 +302,26 @@ void gen(Node* node) {
     case ND_DIV:
       iprintf("cqo\n");
       iprintf("idiv rdi\n");
+      break;
+    case ND_EQ:
+      iprintf("cmp rax, rdi\n");
+      iprintf("sete al\n");
+      iprintf("movzb rax, al\n");
+      break;
+    case ND_NE:
+      iprintf("cmp rax, rdi\n");
+      iprintf("setne al\n");
+      iprintf("movzb rax, al\n");
+      break;
+    case ND_LT:
+      iprintf("cmp rax, rdi\n");
+      iprintf("setl al\n");
+      iprintf("movzb rax, al\n");
+      break;
+    case ND_LE:
+      iprintf("cmp rax, rdi\n");
+      iprintf("setle al\n");
+      iprintf("movzb rax, al\n");
       break;
   }
   iprintf("push rax\n");
