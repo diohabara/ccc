@@ -26,13 +26,13 @@ Token* token;
 char* user_input;
 
 // report where an error happens
-void error_at(char* loc, char *fmt, ...) {
+void error_at(char* loc, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
   int pos = loc - user_input;
   fprintf(stderr, "%s\n", user_input);
-  fprintf(stderr, "%*s", pos, " "); // output `pos` blanks
+  fprintf(stderr, "%*s", pos, " ");  // output `pos` blanks
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
@@ -49,14 +49,14 @@ void error(char* fmt, ...) {
 }
 
 // print with indents
-void dprintf(int depth, char* fmt, ...) {
+void iprintf(char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  for (int i = 0; i < depth; i++) {
-    printf("\t");
-  }
+  printf("\t");
   vfprintf(stdout, fmt, ap);
 }
+
+// tokenizer
 
 // if the next token is an expected symbol, read through to the next token
 // return true if so. otherwise, return false
@@ -109,7 +109,7 @@ Token* tokenize(char* p) {
       p++;
       continue;
     }
-    if (*p == '+' || *p == '-') {
+    if (strchr("+-*/()", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -124,31 +124,137 @@ Token* tokenize(char* p) {
   return head.next;
 }
 
+// parser
+
+typedef enum {
+  ND_ADD,  // +
+  ND_SUB,  // -
+  ND_MUL,  // *
+  ND_DIV,  // /
+  ND_NUM,  // integer
+} NodeKind;
+
+typedef struct Node Node;
+
+// AST node's types
+struct Node {
+  NodeKind kind;
+  Node* lhs;
+  Node* rhs;
+  int val;  // used when it's an integer
+};
+// function declarations
+Node* expr();
+Node* mul();
+Node* primary();
+
+Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+Node* new_node_num(int val) {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_NUM;
+  node->val = val;
+  return node;
+}
+
+// expr = mul ("+" mul | "-" mul)*
+Node* expr() {
+  Node* node = mul();
+
+  for (;;) {
+    if (consume('+')) {
+      node = new_node(ND_ADD, node, mul());
+    } else if (consume('-')) {
+      node = new_node(ND_SUB, node, mul());
+    } else {
+      return node;
+    }
+  }
+}
+
+// mul = primary ("*" primary | "/" priamry)*
+Node* mul() {
+  Node* node = primary();
+
+  for (;;) {
+    if (consume('*')) {
+      node = new_node(ND_MUL, node, primary());
+    } else if (consume('/')) {
+      node = new_node(ND_DIV, node, primary());
+    } else {
+      return node;
+    }
+  }
+}
+
+// primary = "(" expr ")" | num
+Node* primary() {
+  if (consume('(')) {
+    Node* node = expr();
+    expect(')');
+    return node;
+  }
+  return new_node_num(expect_number());
+}
+
+// code generator
+
+void gen(Node* node) {
+  if (node->kind == ND_NUM) {
+    iprintf("push %d\n", node->val);
+    return;
+  }
+  gen(node->lhs);
+  gen(node->rhs);
+
+  iprintf("pop rdi\n");
+  iprintf("pop rax\n");
+
+  switch (node->kind) {
+    case ND_ADD:
+      iprintf("add rax, rdi\n");
+      break;
+    case ND_SUB:
+      iprintf("sub rax, rdi\n");
+      break;
+    case ND_MUL:
+      iprintf("imul rax, rdi\n");
+      break;
+    case ND_DIV:
+      iprintf("cqo\n");
+      iprintf("idiv rdi\n");
+      break;
+  }
+  iprintf("push rax\n");
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) {
-    fprintf(stderr, "The number of input arguments is not correct.\n");
-    return 1;
+    error("%s: invalid number of arguments", argv[0]);
   }
-  token = tokenize(argv[1]);
+
+  // tokenize and parse
+  user_input = argv[1];
+  token = tokenize(user_input);
+  Node* node = expr();
 
   // initial part of assembly
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
 
-  // the first element of an expression must be number
-  dprintf(1, "mov rax, %d\n", expect_number());
+  // code genaration
+  gen(node);
 
-  // consume `+`, `-`, or `number` and output assembly
-  while (!at_eof()) {
-    if (consume('+')) {
-      dprintf(1, "add rax, %d\n", expect_number());
-      continue;
-    }
-
-    expect('-');
-    dprintf(1, "sub rax, %d\n", expect_number());
-  }
-  dprintf(1, "ret\n");
+  // there remains a value in the stack top,
+  // load it into rax
+  iprintf("pop rax\n");
+  iprintf("ret\n");
   return 0;
 }
