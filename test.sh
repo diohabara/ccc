@@ -27,5 +27,10 @@ assert 41 " 12 + 34 - 5 "
 assert 47 "5+6*7"
 assert 15 "5*(9-6)"
 assert 4 "(3+5)/2"
+# step6(unary operator)
+assert 47 "+47"
+assert 0 "-49+49"
+assert 10 "- - 10"
+assert 10 "- - +10"
 
 echo OK
