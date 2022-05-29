@@ -1,6 +1,11 @@
 CFLAGS=-std=c11 -g -static
+SRCS=$(wildcard *.c)
+OBJS=$(SRCS:.c=.o)
 
-ccc: ccc.c
+ccc: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+
+$(OBJS): ccc.h
 
 lint:
 	./lint.sh
