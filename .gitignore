@@ -4,7 +4,7 @@
 !.devcontainer
 !.clang-format
 !README.md
-!*.c
+!*.[ch]
 !.gitignore
 !*.sh
 !Makefile
