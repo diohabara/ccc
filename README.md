@@ -1,5 +1,7 @@
 # ccc
 
+[![ci](https://github.com/diohabara/ccc/actions/workflows/ci.yaml/badge.svg)](https://github.com/diohabara/ccc/actions/workflows/ci.yaml)
+
 An experimental C compiler.
 
 ## how to develop
