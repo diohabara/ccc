@@ -1,10 +1,4 @@
-*
-**/*
-!LICENSE
-!.devcontainer
-!.clang-format
-!README.md
-!*.[ch]
-!.gitignore
-!*.sh
-!Makefile
+ccc
+*.o
+*~
+tmp*
