@@ -78,6 +78,15 @@ Token* new_token(TokenKind kind, Token* cur, char* str, int len) {
   return tok;
 }
 
+Token* consume_ident() {
+  if (token->kind != TK_IDENT) {
+    return NULL;
+  }
+  Token* t = token;
+  token = token->next;
+  return t;
+}
+
 bool startswith(char* p, char* q) { return memcmp(p, q, strlen(q)) == 0; }
 
 // tokenize input `user_input` and return new tokens
@@ -98,9 +107,12 @@ Token* tokenize(char* p) {
       continue;
     }
     // single-char punctuator
-    if (strchr("+-*/()<>", *p)) {
-      cur = new_token(TK_RESERVED, cur, p, 1);
-      p++;
+    if (strchr("+-*/()<>;=", *p)) {
+      cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p++, 1);
       continue;
     }
     if (isdigit(*p)) {

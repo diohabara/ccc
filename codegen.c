@@ -1,10 +1,43 @@
 #include "ccc.h"
 
-void gen(Node* node) {
-  if (node->kind == ND_NUM) {
-    iprintf("push %d\n", node->val);
-    return;
+void gen_lval(Node* node) {
+  if (node->kind != ND_LVAR) {
+    error("The left-hand side value of the assignment is not a variable");
   }
+  iprintf("mov rax, rbp\n");
+  iprintf("sub rax, %d\n", node->offset);
+  iprintf("push rax\n");
+}
+
+void load() {
+  iprintf("pop rax\n");
+  iprintf("mov rax, [rax]\n");
+  iprintf("push rax\n");
+}
+
+void store() {
+  iprintf("pop rdi\n");
+  iprintf("pop rax\n");
+  iprintf("mov [rax], rdi\n");
+  iprintf("push rdi\n");
+}
+
+void gen(Node* node) {
+  switch (node->kind) {
+    case ND_NUM:
+      iprintf("push %d\n", node->val);
+      return;
+    case ND_LVAR:
+      gen_lval(node);
+      load();
+      return;
+    case ND_ASSIGN:
+      gen_lval(node->lhs);
+      gen(node->rhs);
+      store();
+      return;
+  }
+
   gen(node->lhs);
   gen(node->rhs);
 
@@ -55,10 +88,24 @@ void codegen(Node* node) {
   printf(".global main\n");
   printf("main:\n");
 
-  gen(node);
+  // prologue
+  // allocate space for 26 variables
+  iprintf("push rbp\n");
+  iprintf("mov rbp, rsp\n");
+  iprintf("sub rsp, 208\n");
 
-  // there remains a value in the stack top,
-  // load it into rax
-  iprintf("pop rax\n");
+  // code generation from the first statement
+  for (Node* n = node; n; n = n->next) {
+    gen(n);
+
+    // there remains 1 value in the stack as result of expressions
+    // so, pop it so as not to overflow stack
+    iprintf("pop rax\n");
+  }
+
+  // epilogue
+  // the result of the last expression remains in RAX, so return it
+  iprintf("mov rsp, rbp\n");
+  iprintf("pop rbp\n");
   iprintf("ret\n");
 }

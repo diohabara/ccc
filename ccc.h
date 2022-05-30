@@ -10,6 +10,7 @@
 //
 typedef enum {
   TK_RESERVED,  // symbol
+  TK_IDENT,     // indentifier
   TK_NUM,       // integer
   TK_EOF,       // end of line
 } TokenKind;
@@ -33,6 +34,7 @@ void expect(char* op);
 int expect_number();
 bool at_eof();
 Token* new_token(TokenKind, Token*, char*, int);
+Token* consume_ident();
 bool startswith(char*, char*);
 Token* tokenize(char*);
 
@@ -40,27 +42,34 @@ Token* tokenize(char*);
 // parse.c
 //
 typedef enum {
-  ND_ADD,  // +
-  ND_SUB,  // -
-  ND_MUL,  // *
-  ND_DIV,  // /
-  ND_NUM,  // integer
-  ND_EQ,   // ==
-  ND_NE,   // !=
-  ND_LT,   // <
-  ND_LE,   // <=
+  ND_ADD,     // +
+  ND_SUB,     // -
+  ND_MUL,     // *
+  ND_DIV,     // /
+  ND_NUM,     // integer
+  ND_EQ,      // ==
+  ND_NE,      // !=
+  ND_LT,      // <
+  ND_LE,      // <=
+  ND_ASSIGN,  // =
+  ND_LVAR,    // local variable
 } NodeKind;
 typedef struct Node Node;
 // AST node's types
 struct Node {
   NodeKind kind;
+  Node* next;
   Node* lhs;
   Node* rhs;
-  int val;  // used when it's an integer
+  int val;     // used in the case of ND_NUM
+  int offset;  // used in the case of ND_LVAR
 };
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs);
 Node* new_node_num(int val);
+Node* program();
+Node* stmt();
 Node* expr();
+Node* assign();
 Node* equality();
 Node* relational();
 Node* add();
@@ -71,5 +80,8 @@ Node* primary();
 //
 // codegen.c
 //
+void gen_lval(Node*);
+void load();
+void store();
 void gen(Node*);
 void codegen(Node*);

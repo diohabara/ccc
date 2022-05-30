@@ -15,8 +15,36 @@ Node* new_node_num(int val) {
   return node;
 }
 
-// expr = equality
-Node* expr() { return equality(); }
+// program = stmt*
+Node* program() {
+  Node head;
+  head.next = NULL;
+  Node* cur = &head;
+  while (!at_eof()) {
+    cur->next = stmt();
+    cur = cur->next;
+  }
+  return head.next;
+}
+
+// stmt = expr ";"
+Node* stmt() {
+  Node* node = expr();
+  expect(";");
+  return node;
+}
+
+// expr = assign
+Node* expr() { return assign(); }
+
+// assign = equality ("=" assign)?
+Node* assign() {
+  Node* node = equality();
+  if (consume("=")) {
+    node = new_node(ND_ASSIGN, node, assign());
+  }
+  return node;
+}
 
 // equality = relational ("==" relational | "!=" relational)*
 Node* equality() {
@@ -92,11 +120,18 @@ Node* unary() {
   return primary();
 }
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | ident | num
 Node* primary() {
   if (consume("(")) {
     Node* node = expr();
     expect(")");
+    return node;
+  }
+  Token* tok = consume_ident();
+  if (tok) {
+    Node* node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
     return node;
   }
   return new_node_num(expect_number());
