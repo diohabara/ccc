@@ -15,4 +15,4 @@ jobs:
           docker build -t local - < .devcontainer/Dockerfile
       - name: test
         run: |
-          docker run -it -v "$PWD:/src" -w/src local make test
+          docker run -v "$PWD:/src" -w/src local make test
