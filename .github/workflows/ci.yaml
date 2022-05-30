@@ -1,0 +1,14 @@
+name: 'ci'
+job:
+  run-all-test:
+    runs-on: ubuntu-latest
+    name: Run all test
+    steps:
+      - name: Checkout
+        uses: actions@checkout@v3
+      - name: build
+        run: |
+          docker build -t local - < .devcontianer/Dockerfile
+      - name: test
+        run: |
+          docker run -it -v $PWD:/src -w/src local make test
