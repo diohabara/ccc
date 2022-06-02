@@ -8,6 +8,7 @@ int main(int argc, char** argv) {
   // tokenize and parse
   user_input = argv[1];
   token = tokenize(user_input);
+  locals = calloc(1, sizeof(LVar));
   Node* node = program();
 
   codegen(node);

@@ -111,8 +111,12 @@ Token* tokenize(char* p) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p++, 1);
+    if (isalpha(*p)) {
+      char* q = p++;
+      while (isalnum(*p)) {
+        p++;
+      }
+      cur = new_token(TK_IDENT, cur, q, p - q);
       continue;
     }
     if (isdigit(*p)) {

@@ -22,10 +22,16 @@ struct Token {
   char* str;  // token string
   int len;    // the length of a token
 };
-// input program
-extern char* user_input;
-// token currently focused on
-extern Token* token;
+typedef struct LVar LVar;
+// local variable
+struct LVar {
+  LVar* next;  // next variable or NULL
+  char* name;  // variable's name
+  int len;     // length of the name
+  int offset;  // offset from RBP
+};
+extern char* user_input;  // input program
+extern Token* token;      // token currently focused on
 void error_at(char*, char* fmt, ...);
 void error(char* fmt, ...);
 void iprintf(char*, ...);
@@ -64,8 +70,10 @@ struct Node {
   int val;     // used in the case of ND_NUM
   int offset;  // used in the case of ND_LVAR
 };
-Node* new_node(NodeKind kind, Node* lhs, Node* rhs);
-Node* new_node_num(int val);
+extern LVar* locals;  // local variables
+LVar* find_lvar(Token*);
+Node* new_node(NodeKind, Node*, Node*);
+Node* new_node_num(int);
 Node* program();
 Node* stmt();
 Node* expr();

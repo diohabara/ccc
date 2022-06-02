@@ -57,5 +57,8 @@ assert 0 "1>=2;"
 assert 47 "+48; 0 == 1; +47;"
 ## single-letter variable
 assert 1 "a=1;"
+# step10(multi-letter variable)
+assert 33 "foo=33;"
+assert 4 "aho = 3; futsu = 4;"
 
 echo OK
