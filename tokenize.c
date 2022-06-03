@@ -111,6 +111,11 @@ Token* tokenize(char* p) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
+    if (startswith(p, "return") && !isalnum(p[6])) {
+      cur = new_token(TK_RESERVED, cur, p, 6);
+      p += 6;
+      continue;
+    }
     if (isalpha(*p)) {
       char* q = p++;
       while (isalnum(*p)) {

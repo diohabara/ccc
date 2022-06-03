@@ -36,6 +36,13 @@ void gen(Node* node) {
       gen(node->rhs);
       store();
       return;
+    case ND_RETURN:
+      gen(node->lhs);
+      iprintf("pop rax\n");
+      iprintf("mov rsp, rbp\n");
+      iprintf("pop rbp\n");
+      iprintf("ret\n");
+      return;
   }
 
   gen(node->lhs);

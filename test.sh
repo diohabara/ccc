@@ -60,5 +60,7 @@ assert 1 "a=1;"
 # step10(multi-letter variable)
 assert 33 "foo=33;"
 assert 4 "aho = 3; futsu = 4;"
+# step11(return statement)
+assert 14 "a = 3; b = 5 * 6 - 8; return a + b / 2;"
 
 echo OK
