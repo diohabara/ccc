@@ -38,13 +38,55 @@ Node* program() {
   return head.next;
 }
 
-// stmt = expr ";" | "return" expr ";"
+/* stmt = expr ";"
+  | "if" "(" expr ")" stmt ("else" stmt)?
+  | "while" "(" expr ")" stmt
+  | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+  | "return" expr ";"
+*/
 Node* stmt() {
   Node* node;
   if (consume("return")) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr();
+  } else if (consume("if")) {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_IF;
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->then = stmt();
+    if (consume("else")) {
+      node->els = stmt();
+    }
+    return node;
+  } else if (consume("while")) {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_WHILE;
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->then = stmt();
+    return node;
+  } else if (consume("for")) {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_FOR;
+    expect("(");
+    if (!consume(";")) {
+      node->init = expr();
+      expect(";");
+    }
+    if (!consume(";")) {
+      node->cond = expr();
+      expect(";");
+    }
+    if (!consume(")")) {
+      node->inc = expr();
+      expect(")");
+    }
+    node->then = stmt();
+    return node;
   } else {
     node = expr();
   }

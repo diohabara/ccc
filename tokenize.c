@@ -89,6 +89,28 @@ Token* consume_ident() {
 
 bool startswith(char* p, char* q) { return memcmp(p, q, strlen(q)) == 0; }
 
+char* starts_with_reserved(char* p) {
+  // keyword
+  static char* kw[] = {"return", "if", "else", "while", "for"};
+
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
+    int len = strlen(kw[i]);
+    if (startswith(p, kw[i]) && !isalnum(p[len])) {
+      return kw[i];
+    }
+  }
+
+  // multi-letter punctuations
+  static char* ops[] = {"==", "!=", "<=", ">="};
+  for (int i = 0; i < sizeof(ops) / sizeof(*ops); i++) {
+    if (startswith(p, ops[i])) {
+      return ops[i];
+    }
+  }
+
+  return NULL;
+}
+
 // tokenize input `user_input` and return new tokens
 Token* tokenize(char* p) {
   Token head;
@@ -100,20 +122,16 @@ Token* tokenize(char* p) {
       continue;
     }
     // multi-char punctuator
-    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, ">=") ||
-        startswith(p, "<=")) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
-      p += 2;
+    char* kw = starts_with_reserved(p);
+    if (kw) {
+      int len = strlen(kw);
+      cur = new_token(TK_RESERVED, cur, p, len);
+      p += len;
       continue;
     }
     // single-char punctuator
     if (strchr("+-*/()<>;=", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
-      continue;
-    }
-    if (startswith(p, "return") && !isalnum(p[6])) {
-      cur = new_token(TK_RESERVED, cur, p, 6);
-      p += 6;
       continue;
     }
     if (isalpha(*p)) {

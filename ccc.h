@@ -60,6 +60,9 @@ typedef enum {
   ND_ASSIGN,  // =
   ND_LVAR,    // local variable
   ND_RETURN,  // "return"
+  ND_IF,      // "if"
+  ND_WHILE,   // "while"
+  ND_FOR,     // "for"
 } NodeKind;
 typedef struct Node Node;
 // AST node's types
@@ -68,6 +71,13 @@ struct Node {
   Node* next;
   Node* lhs;
   Node* rhs;
+  // "if", "while", or "for" statement
+  Node* cond;
+  Node* then;
+  Node* els;  // else
+  Node* init;
+  Node* inc;
+
   int val;     // used in the case of ND_NUM
   int offset;  // used in the case of ND_LVAR
 };

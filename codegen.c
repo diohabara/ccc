@@ -1,5 +1,7 @@
 #include "ccc.h"
 
+int labelseq = 0;
+
 void gen_lval(Node* node) {
   if (node->kind != ND_LVAR) {
     error("The left-hand side value of the assignment is not a variable");
@@ -35,6 +37,57 @@ void gen(Node* node) {
       gen_lval(node->lhs);
       gen(node->rhs);
       store();
+      return;
+    case ND_IF:
+      labelseq++;
+      if (node->els) {
+        gen(node->cond);
+        iprintf("pop rax\n");
+        iprintf("cmp rax, 0\n");
+        iprintf("je .Lelse%d\n", labelseq);
+        gen(node->then);
+        iprintf("jmp .Lend%d\n", labelseq);
+        printf(".Lelse%d:\n", labelseq);
+        gen(node->els);
+        printf(".Lend%d:\n", labelseq);
+      } else {
+        gen(node->cond);
+        iprintf("pop rax\n");
+        iprintf("cmp rax, 0\n");
+        iprintf("je .Lend%d\n", labelseq);
+        gen(node->then);
+        printf(".Lend%d:\n", labelseq);
+      }
+      return;
+    case ND_WHILE:
+      labelseq++;
+      printf(".Lbegin%d:\n", labelseq);
+      gen(node->cond);
+      iprintf("pop rax\n");
+      iprintf("cmp rax, 0\n");
+      iprintf("je  .Lend%d\n", labelseq);
+      gen(node->then);
+      iprintf("jmp .Lbegin%d\n", labelseq);
+      printf(".Lend%d:\n", labelseq);
+      return;
+    case ND_FOR:
+      labelseq++;
+      if (node->init) {
+        gen(node->init);
+      }
+      printf(".Lbegin%d:\n", labelseq);
+      if (node->cond) {
+        gen(node->cond);
+        iprintf("pop rax\n");
+        iprintf("cmp rax, 0\n");
+        iprintf("je .Lend%d\n", labelseq);
+      }
+      gen(node->then);
+      if (node->inc) {
+        gen(node->inc);
+      }
+      iprintf("jmp .Lbegin%d\n", labelseq);
+      printf(".Lend%d:\n", labelseq);
       return;
     case ND_RETURN:
       gen(node->lhs);

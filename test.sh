@@ -62,5 +62,16 @@ assert 33 "foo=33;"
 assert 4 "aho = 3; futsu = 4;"
 # step11(return statement)
 assert 14 "a = 3; b = 5 * 6 - 8; return a + b / 2;"
+# step12(if, while, for statement)
+## if
+assert 3 "if (0) return 2; return 3;"
+assert 3 "if (1-1) return 2; return 3;"
+assert 2 "if (1) return 2; return 3;"
+assert 2 "if (2-1) return 2; return 3;"
+## while
+assert 10 "i=0; while(i<10) i=i+1; return i;"
+## for
+assert 55 "i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j;"
+assert 3 "for (;;) return 3; return 5;"
 
 echo OK
