@@ -2,6 +2,14 @@
 
 LVar* locals;
 
+// char* strndup(const char* s, int n) {
+//   char* dup = malloc(n + 1);
+//   if (dup) {
+//     strcpy(dup, s);
+//   }
+//   return dup;
+// }
+
 LVar* find_lvar(Token* tok) {
   for (LVar* var = locals; var; var = var->next) {
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
@@ -193,7 +201,23 @@ Node* unary() {
   return primary();
 }
 
-// primary = "(" expr ")" | ident | num
+// func_args = "(" (assign ("," assign)*)? ")"
+Node* func_args() {
+  // without arguments
+  if (consume(")")) {
+    return NULL;
+  }
+  Node* head = assign();
+  Node* cur = head;
+  while (consume(",")) {
+    cur->next = assign();
+    cur = cur->next;
+  }
+  expect(")");
+  return head;
+}
+
+// primary = "(" expr ")" | ident func_args? | num
 Node* primary() {
   if (consume("(")) {
     Node* node = expr();
@@ -203,6 +227,12 @@ Node* primary() {
   Token* tok = consume_ident();
   if (tok) {
     Node* node = calloc(1, sizeof(Node));
+    if (consume("(")) {
+      node->kind = ND_FUNCALL;
+      node->funcname = strndup(tok->str, tok->len);
+      node->args = func_args();
+      return node;
+    }
     node->kind = ND_LVAR;
     LVar* lvar = find_lvar(tok);
     if (lvar) {  // update variable

@@ -35,6 +35,7 @@ extern Token* token;      // token currently focused on
 void error_at(char*, char* fmt, ...);
 void error(char* fmt, ...);
 void iprintf(char*, ...);
+char* strndup(char* p, int len);
 bool consume(char* op);
 void expect(char* op);
 int expect_number();
@@ -48,22 +49,23 @@ Token* tokenize(char*);
 // parse.c
 //
 typedef enum {
-  ND_ADD,     // +
-  ND_SUB,     // -
-  ND_MUL,     // *
-  ND_DIV,     // /
-  ND_NUM,     // integer
-  ND_EQ,      // ==
-  ND_NE,      // !=
-  ND_LT,      // <
-  ND_LE,      // <=
-  ND_ASSIGN,  // =
-  ND_LVAR,    // local variable
-  ND_RETURN,  // "return"
-  ND_IF,      // "if"
-  ND_WHILE,   // "while"
-  ND_FOR,     // "for"
-  ND_BLOCK,   // "{ ... }"
+  ND_ADD,      // +
+  ND_SUB,      // -
+  ND_MUL,      // *
+  ND_DIV,      // /
+  ND_NUM,      // integer
+  ND_EQ,       // ==
+  ND_NE,       // !=
+  ND_LT,       // <
+  ND_LE,       // <=
+  ND_ASSIGN,   // =
+  ND_LVAR,     // local variable
+  ND_RETURN,   // "return"
+  ND_IF,       // "if"
+  ND_WHILE,    // "while"
+  ND_FOR,      // "for"
+  ND_BLOCK,    // "{ ... }"
+  ND_FUNCALL,  // function call
 } NodeKind;
 typedef struct Node Node;
 // AST node's types
@@ -80,6 +82,9 @@ struct Node {
   Node* inc;
   // Block
   Node* body;
+  // Function call
+  char* funcname;
+  Node* args;
   int val;     // used in the case of ND_NUM
   int offset;  // used in the case of ND_LVAR
 };

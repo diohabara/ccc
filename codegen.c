@@ -1,6 +1,7 @@
 #include "ccc.h"
 
 int labelseq = 0;
+char* argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void gen_lval(Node* node) {
   if (node->kind != ND_LVAR) {
@@ -93,6 +94,33 @@ void gen(Node* node) {
       for (Node* n = node->body; n; n = n->next) {
         gen(n);
       }
+      return;
+    case ND_FUNCALL:
+      int nargs = 0;
+      for (Node* arg = node->args; arg; arg = arg->next) {
+        gen(arg);
+        nargs++;
+      }
+      for (int i = nargs - 1; i >= 0; i--) {
+        iprintf("pop %s\n", argreg[i]);
+      }
+      // align RSP to a 16 byte boundary before
+      // calling a function because it is an ABI requirement.
+      // RAX is set to 0 for variadic function.
+      labelseq++;
+      iprintf("mov rax, rsp\n");
+      iprintf("and rax, 15\n");
+      iprintf("jnz .Lcall%d\n", labelseq);
+      iprintf("mov rax, 0\n");
+      iprintf("call %s\n", node->funcname);
+      iprintf("jmp .Lend%d\n", labelseq);
+      printf(".Lcall%d:\n", labelseq);
+      iprintf("sub rsp, 8\n");
+      iprintf("mov rax, 0\n");
+      iprintf("call %s\n", node->funcname);
+      iprintf("add rsp, 8\n");
+      iprintf(".Lend%d:\n", labelseq);
+      iprintf("push rax\n");
       return;
     case ND_RETURN:
       gen(node->lhs);

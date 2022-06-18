@@ -1,10 +1,18 @@
 #!/bin/bash
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+int add(int x, int y) { return x + y; }
+int sub(int x, int y) { return x - y; }
+int add6(int x1, int x2, int x3, int x4, int x5, int x6) { return x1+x2+x3+x4+x5+x6; }
+EOF
+
 assert() {
 	expected="$1"
 	input="$2"
 
 	./ccc "$input" >tmp.s
-	cc -o tmp tmp.s
+	gcc -static -o tmp tmp.s tmp2.o
 	./tmp
 	actual="$?"
 
@@ -76,5 +84,13 @@ assert 3 'for (;;) return 3; return 5;'
 # step13(compound statement)
 assert 3 '{1; {2;} return 3;}'
 assert 55 'i=0; j=0; while(i<=10) {j=i+j; i=i+1;} return j;'
+# step14(function call)
+## zero-arity
+assert 3 'return ret3();'
+assert 5 'return ret5();'
+## multiple arity
+assert 8 'return add(3, 5);'
+assert 2 'return sub(5, 3);'
+assert 21 'return add6(1,2,3,4,5,6);'
 
 echo OK

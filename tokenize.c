@@ -34,6 +34,13 @@ void iprintf(char* fmt, ...) {
   vfprintf(stdout, fmt, ap);
 }
 
+char* strndup(char* p, int len) {
+  char* buf = malloc(len + 1);
+  strncpy(buf, p, len);
+  buf[len] = '\0';
+  return buf;
+}
+
 // if the next token is an expected symbol, read through to the next token
 // return true if so. otherwise, return false
 bool consume(char* op) {
@@ -130,7 +137,7 @@ Token* tokenize(char* p) {
       continue;
     }
     // single-char punctuator
-    if (strchr("+-*/()<>;={}", *p)) {
+    if (strchr("+-*/()<>;={},", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
