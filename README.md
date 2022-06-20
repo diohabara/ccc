@@ -8,24 +8,32 @@ An experimental C compiler.
 
 ### dependencies
 
+To compile
+
 - `docker`
+
+To lint
+
+- `make`
+- `shellcheck`
+- `clang-format`
 
 ### build
 
 ```bash
-docker build -t ccc - < Dockerfile
+docker build . -t ccc
 ```
 
 ### help
 
 ```bash
-docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make
+docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make help
 ```
 
 ### lint/format
 
 ```bash
-docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make lint
+make lint
 ```
 
 ### test
@@ -33,13 +41,27 @@ docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make lint
 When you want to see if the compiler is working,
 
 ```bash
-docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make test
+docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make test
 ```
 
 When you debug something about the testing,
 
 ```bash
-docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make debug
+docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make debug
+```
+
+### debug
+
+If you want to debug interactively, use `gdb`.
+
+```bash
+docker run -i --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc bash -c "make; gdb ./ccc"
+```
+
+If you want to debug `main() { a = 1; b = 2; return 3; }` in `gdb`,
+
+```gdb
+r 'main() { a = 1; b = 2; return 3; }'
 ```
 
 ### clean
@@ -47,11 +69,11 @@ docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make debug
 When you want to remove object files,
 
 ```bash
-docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make clean
+make clean
 ```
 
 ## references
 
 - <https://www.sigbus.info/compilerbook>
-- <https://github.com/rui314/chibicc>
-- <https://github.com/rui314/chibicc/tree/reference>
+- <https://github.com/rui314/ccc>
+- <https://github.com/rui314/ccc/tree/reference>

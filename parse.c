@@ -1,89 +1,158 @@
 #include "ccc.h"
 
-LVar* locals;
-
-// char* strndup(const char* s, int n) {
-//   char* dup = malloc(n + 1);
-//   if (dup) {
-//     strcpy(dup, s);
-//   }
-//   return dup;
-// }
-
-LVar* find_lvar(Token* tok) {
-  for (LVar* var = locals; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+VarList *locals;
+// Find a local variable by name.
+Var *find_var(Token *tok) {
+  for (VarList *vl = locals; vl; vl = vl->next) {
+    Var *var = vl->var;
+    if (strlen(var->name) == tok->len && !memcmp(tok->str, var->name, tok->len))
       return var;
-    }
   }
   return NULL;
 }
 
-Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
-  Node* node = calloc(1, sizeof(Node));
+Node *new_node(NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
+  return node;
+}
+
+Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
 }
 
-Node* new_node_num(int val) {
-  Node* node = calloc(1, sizeof(Node));
-  node->kind = ND_NUM;
+Node *new_unary(NodeKind kind, Node *expr) {
+  Node *node = new_node(kind);
+  node->lhs = expr;
+  return node;
+}
+
+Node *new_num(int val) {
+  Node *node = new_node(ND_NUM);
   node->val = val;
   return node;
 }
 
-// program = stmt*
-Node* program() {
-  Node head;
+Node *new_var(Var *var) {
+  Node *node = new_node(ND_VAR);
+  node->var = var;
+  return node;
+}
+
+Var *push_var(char *name) {
+  Var *var = calloc(1, sizeof(Var));
+  var->name = name;
+  VarList *vl = calloc(1, sizeof(VarList));
+  vl->var = var;
+  vl->next = locals;
+  locals = vl;
+  return var;
+}
+
+Function *function();
+Node *stmt();
+Node *expr();
+Node *assign();
+Node *equality();
+Node *relational();
+Node *add();
+Node *mul();
+Node *unary();
+Node *primary();
+
+// program = function*
+Function *program() {
+  Function head;
   head.next = NULL;
-  Node* cur = &head;
+  Function *cur = &head;
+
   while (!at_eof()) {
-    cur->next = stmt();
+    cur->next = function();
     cur = cur->next;
   }
   return head.next;
 }
 
-/* stmt = expr ";"
-  | "if" "(" expr ")" stmt ("else" stmt)?
-  | "while" "(" expr ")" stmt
-  | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-  | "{" stmt* "}"
-  | "return" expr ";"
-*/
-Node* stmt() {
-  Node* node;
+VarList *read_fun_params() {
+  if (consume(")")) {
+    return NULL;
+  }
+  VarList *head = calloc(1, sizeof(VarList));
+  head->var = push_var(expect_ident());
+  VarList *cur = head;
+
+  while (!consume(")")) {
+    expect(",");
+    cur->next = calloc(1, sizeof(VarList));
+    cur->next->var = push_var(expect_ident());
+    cur = cur->next;
+  }
+  return head;
+}
+
+// function = ident "(" params? ")" "{" stmt* "}"
+Function *function() {
+  locals = NULL;
+
+  Function *fn = calloc(1, sizeof(Function));
+  fn->name = expect_ident();
+  expect("(");
+  fn->params = read_fun_params();
+  expect("{");
+
+  Node head;
+  head.next = NULL;
+  Node *cur = &head;
+
+  while (!consume("}")) {
+    cur->next = stmt();
+    cur = cur->next;
+  }
+
+  fn->node = head.next;
+  fn->locals = locals;
+  return fn;
+}
+
+Node *read_expr_stmt() { return new_unary(ND_EXPR_STMT, expr()); }
+
+// stmt = "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+//      | "{" stmt* "}"
+//      | expr ";"
+Node *stmt() {
   if (consume("return")) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_RETURN;
-    node->lhs = expr();
-  } else if (consume("if")) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_IF;
+    Node *node = new_unary(ND_RETURN, expr());
+    expect(";");
+    return node;
+  }
+  if (consume("if")) {
+    Node *node = new_node(ND_IF);
     expect("(");
     node->cond = expr();
     expect(")");
     node->then = stmt();
-    if (consume("else")) {
-      node->els = stmt();
-    }
+    if (consume("else")) node->els = stmt();
     return node;
-  } else if (consume("while")) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_WHILE;
+  }
+  if (consume("while")) {
+    Node *node = new_node(ND_WHILE);
     expect("(");
     node->cond = expr();
     expect(")");
     node->then = stmt();
     return node;
-  } else if (consume("for")) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_FOR;
+  }
+  if (consume("for")) {
+    Node *node = new_node(ND_FOR);
     expect("(");
     if (!consume(";")) {
-      node->init = expr();
+      node->init = read_expr_stmt();
       expect(";");
     }
     if (!consume(";")) {
@@ -91,124 +160,107 @@ Node* stmt() {
       expect(";");
     }
     if (!consume(")")) {
-      node->inc = expr();
+      node->inc = read_expr_stmt();
       expect(")");
     }
     node->then = stmt();
     return node;
-  } else if (consume("{")) {
+  }
+  if (consume("{")) {
     Node head;
     head.next = NULL;
-    Node* cur = &head;
+    Node *cur = &head;
     while (!consume("}")) {
       cur->next = stmt();
       cur = cur->next;
     }
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_BLOCK;
+    Node *node = new_node(ND_BLOCK);
     node->body = head.next;
     return node;
-  } else {
-    node = expr();
   }
+  Node *node = read_expr_stmt();
   expect(";");
   return node;
 }
 
 // expr = assign
-Node* expr() { return assign(); }
-
+Node *expr() { return assign(); }
 // assign = equality ("=" assign)?
-Node* assign() {
-  Node* node = equality();
-  if (consume("=")) {
-    node = new_node(ND_ASSIGN, node, assign());
-  }
+Node *assign() {
+  Node *node = equality();
+  if (consume("=")) node = new_binary(ND_ASSIGN, node, assign());
   return node;
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-Node* equality() {
-  Node* node = relational();
-
+Node *equality() {
+  Node *node = relational();
   for (;;) {
-    if (consume("==")) {
-      node = new_node(ND_EQ, node, relational());
-    } else if (consume("!=")) {
-      node = new_node(ND_NE, node, relational());
-    } else {
+    if (consume("=="))
+      node = new_binary(ND_EQ, node, relational());
+    else if (consume("!="))
+      node = new_binary(ND_NE, node, relational());
+    else
       return node;
-    }
   }
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-Node* relational() {
-  Node* node = add();
-
+Node *relational() {
+  Node *node = add();
   for (;;) {
-    if (consume("<")) {
-      node = new_node(ND_LT, node, add());
-    } else if (consume("<=")) {
-      node = new_node(ND_LE, node, add());
-    } else if (consume(">")) {
-      node = new_node(ND_LT, add(), node);
-    } else if (consume(">=")) {
-      node = new_node(ND_LE, add(), node);
-    } else {
+    if (consume("<"))
+      node = new_binary(ND_LT, node, add());
+    else if (consume("<="))
+      node = new_binary(ND_LE, node, add());
+    else if (consume(">"))
+      node = new_binary(ND_LT, add(), node);
+    else if (consume(">="))
+      node = new_binary(ND_LE, add(), node);
+    else
       return node;
-    }
   }
 }
 
 // add = mul ("+" mul | "-" mul)*
-Node* add() {
-  Node* node = mul();
-
+Node *add() {
+  Node *node = mul();
   for (;;) {
-    if (consume("+")) {
-      node = new_node(ND_ADD, node, mul());
-    } else if (consume("-")) {
-      node = new_node(ND_SUB, node, mul());
-    } else {
+    if (consume("+"))
+      node = new_binary(ND_ADD, node, mul());
+    else if (consume("-"))
+      node = new_binary(ND_SUB, node, mul());
+    else
       return node;
-    }
   }
 }
 
 // mul = unary ("*" unary | "/" unary)*
-Node* mul() {
-  Node* node = unary();
-
+Node *mul() {
+  Node *node = unary();
   for (;;) {
-    if (consume("*")) {
-      node = new_node(ND_MUL, node, unary());
-    } else if (consume("/")) {
-      node = new_node(ND_DIV, node, unary());
-    } else {
+    if (consume("*"))
+      node = new_binary(ND_MUL, node, unary());
+    else if (consume("/"))
+      node = new_binary(ND_DIV, node, unary());
+    else
       return node;
-    }
   }
 }
 
-// unary = ("+" | "-")? primary
-Node* unary() {
-  if (consume("+")) {
-    return unary();
-  } else if (consume("-")) {
-    return new_node(ND_SUB, new_node_num(0), unary());
-  }
+// unary = ("+" | "-")? unary
+//       | primary
+Node *unary() {
+  if (consume("+")) return unary();
+  if (consume("-")) return new_binary(ND_SUB, new_num(0), unary());
   return primary();
 }
 
-// func_args = "(" (assign ("," assign)*)? ")"
-Node* func_args() {
-  // without arguments
-  if (consume(")")) {
-    return NULL;
-  }
-  Node* head = assign();
-  Node* cur = head;
+// func-args = "(" (assign ("," assign)*)? ")"
+Node *func_args() {
+  if (consume(")")) return NULL;
+  Node *head = assign();
+  Node *cur = head;
   while (consume(",")) {
     cur->next = assign();
     cur = cur->next;
@@ -217,36 +269,24 @@ Node* func_args() {
   return head;
 }
 
-// primary = "(" expr ")" | ident func_args? | num
-Node* primary() {
+// primary = "(" expr ")" | ident func-args? | num
+Node *primary() {
   if (consume("(")) {
-    Node* node = expr();
+    Node *node = expr();
     expect(")");
     return node;
   }
-  Token* tok = consume_ident();
+  Token *tok = consume_ident();
   if (tok) {
-    Node* node = calloc(1, sizeof(Node));
     if (consume("(")) {
-      node->kind = ND_FUNCALL;
+      Node *node = new_node(ND_FUNCALL);
       node->funcname = strndup(tok->str, tok->len);
       node->args = func_args();
       return node;
     }
-    node->kind = ND_LVAR;
-    LVar* lvar = find_lvar(tok);
-    if (lvar) {  // update variable
-      node->offset = lvar->offset;
-    } else {  // create a new variable
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      lvar->offset = locals->offset + 8;
-      node->offset = lvar->offset;
-      locals = lvar;
-    }
-    return node;
+    Var *var = find_var(tok);
+    if (!var) var = push_var(strndup(tok->str, tok->len));
+    return new_var(var);
   }
-  return new_node_num(expect_number());
+  return new_num(expect_number());
 }

@@ -1,204 +1,207 @@
 #include "ccc.h"
 
-int labelseq = 0;
-char* argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
-void gen_lval(Node* node) {
-  if (node->kind != ND_LVAR) {
-    error("The left-hand side value of the assignment is not a variable");
+int labelseq = 0;
+char *funcname;
+
+// Pushes the given node's address to the stack.
+void gen_addr(Node *node) {
+  if (node->kind == ND_VAR) {
+    printf("  lea rax, [rbp-%d]\n", node->var->offset);
+    printf("  push rax\n");
+    return;
   }
-  iprintf("mov rax, rbp\n");
-  iprintf("sub rax, %d\n", node->offset);
-  iprintf("push rax\n");
+  error("not an lvalue");
 }
 
 void load() {
-  iprintf("pop rax\n");
-  iprintf("mov rax, [rax]\n");
-  iprintf("push rax\n");
+  printf("  pop rax\n");
+  printf("  mov rax, [rax]\n");
+  printf("  push rax\n");
 }
 
 void store() {
-  iprintf("pop rdi\n");
-  iprintf("pop rax\n");
-  iprintf("mov [rax], rdi\n");
-  iprintf("push rdi\n");
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
+  printf("  mov [rax], rdi\n");
+  printf("  push rdi\n");
 }
 
-void gen(Node* node) {
+// Generate code for a given node.
+void gen(Node *node) {
   switch (node->kind) {
     case ND_NUM:
-      iprintf("push %d\n", node->val);
+      printf("  push %d\n", node->val);
       return;
-    case ND_LVAR:
-      gen_lval(node);
+    case ND_EXPR_STMT:
+      gen(node->lhs);
+      printf("  add rsp, 8\n");
+      return;
+    case ND_VAR:
+      gen_addr(node);
       load();
       return;
     case ND_ASSIGN:
-      gen_lval(node->lhs);
+      gen_addr(node->lhs);
       gen(node->rhs);
       store();
       return;
-    case ND_IF:
-      labelseq++;
+    case ND_IF: {
+      int seq = labelseq++;
       if (node->els) {
         gen(node->cond);
-        iprintf("pop rax\n");
-        iprintf("cmp rax, 0\n");
-        iprintf("je .Lelse%d\n", labelseq);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lelse%d\n", seq);
         gen(node->then);
-        iprintf("jmp .Lend%d\n", labelseq);
-        printf(".Lelse%d:\n", labelseq);
+        printf("  jmp .Lend%d\n", seq);
+        printf(".Lelse%d:\n", seq);
         gen(node->els);
-        printf(".Lend%d:\n", labelseq);
+        printf(".Lend%d:\n", seq);
       } else {
         gen(node->cond);
-        iprintf("pop rax\n");
-        iprintf("cmp rax, 0\n");
-        iprintf("je .Lend%d\n", labelseq);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", seq);
         gen(node->then);
-        printf(".Lend%d:\n", labelseq);
+        printf(".Lend%d:\n", seq);
       }
       return;
-    case ND_WHILE:
-      labelseq++;
-      printf(".Lbegin%d:\n", labelseq);
+    }
+    case ND_WHILE: {
+      int seq = labelseq++;
+      printf(".Lbegin%d:\n", seq);
       gen(node->cond);
-      iprintf("pop rax\n");
-      iprintf("cmp rax, 0\n");
-      iprintf("je  .Lend%d\n", labelseq);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je  .Lend%d\n", seq);
       gen(node->then);
-      iprintf("jmp .Lbegin%d\n", labelseq);
-      printf(".Lend%d:\n", labelseq);
+      printf("  jmp .Lbegin%d\n", seq);
+      printf(".Lend%d:\n", seq);
       return;
-    case ND_FOR:
-      labelseq++;
-      if (node->init) {
-        gen(node->init);
-      }
-      printf(".Lbegin%d:\n", labelseq);
+    }
+    case ND_FOR: {
+      int seq = labelseq++;
+      if (node->init) gen(node->init);
+      printf(".Lbegin%d:\n", seq);
       if (node->cond) {
         gen(node->cond);
-        iprintf("pop rax\n");
-        iprintf("cmp rax, 0\n");
-        iprintf("je .Lend%d\n", labelseq);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        printf("  je  .Lend%d\n", seq);
       }
       gen(node->then);
-      if (node->inc) {
-        gen(node->inc);
-      }
-      iprintf("jmp .Lbegin%d\n", labelseq);
-      printf(".Lend%d:\n", labelseq);
+      if (node->inc) gen(node->inc);
+      printf("  jmp .Lbegin%d\n", seq);
+      printf(".Lend%d:\n", seq);
       return;
+    }
     case ND_BLOCK:
-      for (Node* n = node->body; n; n = n->next) {
-        gen(n);
-      }
+      for (Node *n = node->body; n; n = n->next) gen(n);
       return;
-    case ND_FUNCALL:
+    case ND_FUNCALL: {
       int nargs = 0;
-      for (Node* arg = node->args; arg; arg = arg->next) {
+      for (Node *arg = node->args; arg; arg = arg->next) {
         gen(arg);
         nargs++;
       }
-      for (int i = nargs - 1; i >= 0; i--) {
-        iprintf("pop %s\n", argreg[i]);
-      }
-      // align RSP to a 16 byte boundary before
+      for (int i = nargs - 1; i >= 0; i--) printf("  pop %s\n", argreg[i]);
+      // We need to align RSP to a 16 byte boundary before
       // calling a function because it is an ABI requirement.
       // RAX is set to 0 for variadic function.
-      labelseq++;
-      iprintf("mov rax, rsp\n");
-      iprintf("and rax, 15\n");
-      iprintf("jnz .Lcall%d\n", labelseq);
-      iprintf("mov rax, 0\n");
-      iprintf("call %s\n", node->funcname);
-      iprintf("jmp .Lend%d\n", labelseq);
-      printf(".Lcall%d:\n", labelseq);
-      iprintf("sub rsp, 8\n");
-      iprintf("mov rax, 0\n");
-      iprintf("call %s\n", node->funcname);
-      iprintf("add rsp, 8\n");
-      iprintf(".Lend%d:\n", labelseq);
-      iprintf("push rax\n");
+      int seq = labelseq++;
+      printf("  mov rax, rsp\n");
+      printf("  and rax, 15\n");
+      printf("  jnz .Lcall%d\n", seq);
+      printf("  mov rax, 0\n");
+      printf("  call %s\n", node->funcname);
+      printf("  jmp .Lend%d\n", seq);
+      printf(".Lcall%d:\n", seq);
+      printf("  sub rsp, 8\n");
+      printf("  mov rax, 0\n");
+      printf("  call %s\n", node->funcname);
+      printf("  add rsp, 8\n");
+      printf(".Lend%d:\n", seq);
+      printf("  push rax\n");
       return;
+    }
     case ND_RETURN:
       gen(node->lhs);
-      iprintf("pop rax\n");
-      iprintf("mov rsp, rbp\n");
-      iprintf("pop rbp\n");
-      iprintf("ret\n");
+      printf("  pop rax\n");
+      printf("  jmp .Lreturn.%s\n", funcname);
       return;
   }
 
   gen(node->lhs);
   gen(node->rhs);
-
-  iprintf("pop rdi\n");
-  iprintf("pop rax\n");
-
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
   switch (node->kind) {
     case ND_ADD:
-      iprintf("add rax, rdi\n");
+      printf("  add rax, rdi\n");
       break;
     case ND_SUB:
-      iprintf("sub rax, rdi\n");
+      printf("  sub rax, rdi\n");
       break;
     case ND_MUL:
-      iprintf("imul rax, rdi\n");
+      printf("  imul rax, rdi\n");
       break;
     case ND_DIV:
-      iprintf("cqo\n");
-      iprintf("idiv rdi\n");
+      printf("  cqo\n");
+      printf("  idiv rdi\n");
       break;
     case ND_EQ:
-      iprintf("cmp rax, rdi\n");
-      iprintf("sete al\n");
-      iprintf("movzb rax, al\n");
+      printf("  cmp rax, rdi\n");
+      printf("  sete al\n");
+      printf("  movzb rax, al\n");
       break;
     case ND_NE:
-      iprintf("cmp rax, rdi\n");
-      iprintf("setne al\n");
-      iprintf("movzb rax, al\n");
+      printf("  cmp rax, rdi\n");
+      printf("  setne al\n");
+      printf("  movzb rax, al\n");
       break;
     case ND_LT:
-      iprintf("cmp rax, rdi\n");
-      iprintf("setl al\n");
-      iprintf("movzb rax, al\n");
+      printf("  cmp rax, rdi\n");
+      printf("  setl al\n");
+      printf("  movzb rax, al\n");
       break;
     case ND_LE:
-      iprintf("cmp rax, rdi\n");
-      iprintf("setle al\n");
-      iprintf("movzb rax, al\n");
+      printf("  cmp rax, rdi\n");
+      printf("  setle al\n");
+      printf("  movzb rax, al\n");
       break;
   }
-  iprintf("push rax\n");
+  printf("  push rax\n");
 }
 
-void codegen(Node* node) {
-  // initial part of assembly
+void codegen(Function *prog) {
   printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
 
-  // prologue
-  // allocate space for 26 variables
-  iprintf("push rbp\n");
-  iprintf("mov rbp, rsp\n");
-  iprintf("sub rsp, 208\n");
+  for (Function *fn = prog; fn; fn = fn->next) {
+    printf(".global %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    funcname = fn->name;
 
-  // code generation from the first statement
-  for (Node* n = node; n; n = n->next) {
-    gen(n);
+    // Prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, %d\n", fn->stack_size);
 
-    // there remains 1 value in the stack as result of expressions
-    // so, pop it so as not to overflow stack
-    iprintf("pop rax\n");
+    // Push arguments to the stack
+    int i = 0;
+    for (VarList *vl = fn->params; vl; vl = vl->next) {
+      Var *var = vl->var;
+      printf(" mov [rbp-%d], %s\n", var->offset, argreg[i++]);
+    }
+
+    // Emit code
+    for (Node *node = fn->node; node; node = node->next) gen(node);
+
+    // Epilogue
+    printf(".Lreturn.%s:\n", funcname);
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
   }
-
-  // epilogue
-  // the result of the last expression remains in RAX, so return it
-  iprintf("mov rsp, rbp\n");
-  iprintf("pop rbp\n");
-  iprintf("ret\n");
 }

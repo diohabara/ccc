@@ -15,4 +15,4 @@ jobs:
           docker build -t ccc - < ./Dockerfile
       - name: test
         run: |
-          docker run -v --platform=linux/amd64 "${PWD}:/src" -w/src ccc make test
+          docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make test

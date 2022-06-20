@@ -4,110 +4,110 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 //
 // tokenize.c
 //
+// Token
 typedef enum {
-  TK_RESERVED,  // symbol
-  TK_IDENT,     // indentifier
-  TK_NUM,       // integer
-  TK_EOF,       // end of line
+  TK_RESERVED,  // Keywords or punctuators
+  TK_IDENT,     // Identifiers
+  TK_NUM,       // Integer literals
+  TK_EOF,       // End-of-file markers
 } TokenKind;
+// Token type
 typedef struct Token Token;
 struct Token {
-  TokenKind kind;
-  Token* next;
-  int val;    // value if it's integer token
-  char* str;  // token string
-  int len;    // the length of a token
+  TokenKind kind;  // Token kind
+  Token *next;     // Next token
+  int val;         // If kind is TK_NUM, its value
+  char *str;       // Token string
+  int len;         // Token length
 };
-typedef struct LVar LVar;
-// local variable
-struct LVar {
-  LVar* next;  // next variable or NULL
-  char* name;  // variable's name
-  int len;     // length of the name
-  int offset;  // offset from RBP
-};
-extern char* user_input;  // input program
-extern Token* token;      // token currently focused on
-void error_at(char*, char* fmt, ...);
-void error(char* fmt, ...);
-void iprintf(char*, ...);
-char* strndup(char* p, int len);
-bool consume(char* op);
-void expect(char* op);
+void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
+bool consume(char *op);
+char *strndup(char *p, int len);
+Token *consume_ident();
+void expect(char *op);
 int expect_number();
+char *expect_ident();
 bool at_eof();
-Token* new_token(TokenKind, Token*, char*, int);
-Token* consume_ident();
-bool startswith(char*, char*);
-Token* tokenize(char*);
-
+Token *new_token(TokenKind kind, Token *cur, char *str, int len);
+Token *tokenize();
+extern char *user_input;
+extern Token *token;
 //
 // parse.c
 //
-typedef enum {
-  ND_ADD,      // +
-  ND_SUB,      // -
-  ND_MUL,      // *
-  ND_DIV,      // /
-  ND_NUM,      // integer
-  ND_EQ,       // ==
-  ND_NE,       // !=
-  ND_LT,       // <
-  ND_LE,       // <=
-  ND_ASSIGN,   // =
-  ND_LVAR,     // local variable
-  ND_RETURN,   // "return"
-  ND_IF,       // "if"
-  ND_WHILE,    // "while"
-  ND_FOR,      // "for"
-  ND_BLOCK,    // "{ ... }"
-  ND_FUNCALL,  // function call
-} NodeKind;
-typedef struct Node Node;
-// AST node's types
-struct Node {
-  NodeKind kind;
-  Node* next;
-  Node* lhs;
-  Node* rhs;
-  // "if", "while", or "for" statement
-  Node* cond;
-  Node* then;
-  Node* els;  // else
-  Node* init;
-  Node* inc;
-  // Block
-  Node* body;
-  // Function call
-  char* funcname;
-  Node* args;
-  int val;     // used in the case of ND_NUM
-  int offset;  // used in the case of ND_LVAR
+// Local variable
+typedef struct Var Var;
+struct Var {
+  char *name;  // Variable name
+  int offset;  // Offset from RBP
 };
-extern LVar* locals;  // local variables
-LVar* find_lvar(Token*);
-Node* new_node(NodeKind, Node*, Node*);
-Node* new_node_num(int);
-Node* program();
-Node* stmt();
-Node* expr();
-Node* assign();
-Node* equality();
-Node* relational();
-Node* add();
-Node* mul();
-Node* unary();
-Node* primary();
+typedef struct VarList VarList;
+struct VarList {
+  VarList *next;
+  Var *var;
+};
+
+// AST node
+typedef enum {
+  ND_ADD,        // +
+  ND_SUB,        // -
+  ND_MUL,        // *
+  ND_DIV,        // /
+  ND_EQ,         // ==
+  ND_NE,         // !=
+  ND_LT,         // <
+  ND_LE,         // <=
+  ND_ASSIGN,     // =
+  ND_RETURN,     // "return"
+  ND_IF,         // "if"
+  ND_WHILE,      // "while"
+  ND_FOR,        // "for"
+  ND_BLOCK,      // { ... }
+  ND_FUNCALL,    // Function call
+  ND_EXPR_STMT,  // Expression statement
+  ND_VAR,        // Variable
+  ND_NUM,        // Integer
+} NodeKind;
+// AST node type
+typedef struct Node Node;
+struct Node {
+  NodeKind kind;  // Node kind
+  Node *next;     // Next node
+  Node *lhs;      // Left-hand side
+  Node *rhs;      // Right-hand side
+  // "if, "while" or "for" statement
+  Node *cond;
+  Node *then;
+  Node *els;
+  Node *init;
+  Node *inc;
+  // Block
+  Node *body;
+  // Function call
+  char *funcname;
+  Node *args;
+  Var *var;  // Used if kind == ND_VAR
+  int val;   // Used if kind == ND_NUM
+};
+
+typedef struct Function Function;
+struct Function {
+  Function *next;
+  char *name;
+  VarList *params;
+  Node *node;
+  VarList* locals;
+  int stack_size;
+};
+
+Function *program();
 
 //
 // codegen.c
 //
-void gen_lval(Node*);
-void load();
-void store();
-void gen(Node*);
-void codegen(Node*);
+
+void codegen(Function *prog);

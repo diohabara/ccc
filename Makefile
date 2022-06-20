@@ -2,7 +2,10 @@ CFLAGS=-std=c11 -g -static
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-.PHONY: help test clean lint debug
+ccc: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(CFLAGS)
+
+$(OBJS): ccc.h
 
 help:
 	@echo "Usage: make [lint|test|debug|clean]"
@@ -10,11 +13,6 @@ help:
 	@echo "  test: run tests"
 	@echo "  debug: run tests in debug mode"
 	@echo "  clean: remove object files"
-
-$(OBJS): ccc.h
-
-ccc: $(OBJS)
-	$(CC) -o $@ $(OBJS) $(CFLAGS)
 
 lint:
 	./lint.sh
@@ -27,3 +25,5 @@ debug: ccc
 
 clean:
 	rm -f ccc *.o *~ tmp*
+
+.PHONY: help lint test debug clean
