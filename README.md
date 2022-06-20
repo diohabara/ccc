@@ -6,12 +6,26 @@ An experimental C compiler.
 
 ## how to develop
 
-You are supposed to work on this repo on the [`devcontainer`](https://code.visualstudio.com/docs/remote/containers) environment.
+### dependencies
+
+- `docker`
+
+### build
+
+```bash
+docker build -t ccc - < Dockerfile
+```
+
+### help
+
+```bash
+docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make
+```
 
 ### lint/format
 
 ```bash
-make lint
+docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make lint
 ```
 
 ### test
@@ -19,13 +33,21 @@ make lint
 When you want to see if the compiler is working,
 
 ```bash
-make test
+docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make test
 ```
 
 When you debug something about the testing,
 
 ```bash
-make debug
+docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make debug
+```
+
+### clean
+
+When you want to remove object files,
+
+```bash
+docker run -v --platform=linux/amd64 "${PWD}:src" -w/src ccc make clean
 ```
 
 ## references

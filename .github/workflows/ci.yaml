@@ -1,4 +1,4 @@
-name: 'ci'
+name: "ci"
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v3
       - name: build
         run: |
-          docker build -t local - < .devcontainer/Dockerfile
+          docker build -t ccc - < ./Dockerfile
       - name: test
         run: |
-          docker run -v "$PWD:/src" -w/src local make test
+          docker run -v --platform=linux/amd64 "${PWD}:/src" -w/src ccc make test
