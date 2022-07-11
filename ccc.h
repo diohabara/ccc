@@ -25,7 +25,7 @@ struct Token {
 };
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
-bool consume(char *op);
+Token *consume(char *op);
 char *strndup(char *p, int len);
 Token *consume_ident();
 void expect(char *op);
@@ -71,12 +71,15 @@ typedef enum {
   ND_EXPR_STMT,  // Expression statement
   ND_VAR,        // Variable
   ND_NUM,        // Integer
+  ND_ADDR,       // unary &
+  ND_DEREF,      // unary *
 } NodeKind;
 // AST node type
 typedef struct Node Node;
 struct Node {
   NodeKind kind;  // Node kind
   Node *next;     // Next node
+  Token *tok;     // representative token
   Node *lhs;      // Left-hand side
   Node *rhs;      // Right-hand side
   // "if, "while" or "for" statement
@@ -100,7 +103,7 @@ struct Function {
   char *name;
   VarList *params;
   Node *node;
-  VarList* locals;
+  VarList *locals;
   int stack_size;
 };
 
