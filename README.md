@@ -6,17 +6,11 @@ An experimental C compiler.
 
 ## how to develop
 
+If you develop in [`Dev Container`](https://code.visualstudio.com/docs/remote/containers), you do not have to put `docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc` at the top of commands. You simply execute `make test`, for example.
+
 ### dependencies
 
-To compile
-
-- `docker`
-
-To lint
-
-- `make`
-- `shellcheck`
-- `clang-format`
+- [`docker`](https://www.docker.com/)
 
 ### build
 
@@ -33,7 +27,7 @@ docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make help
 ### lint/format
 
 ```bash
-make lint
+docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make lint
 ```
 
 ### test
