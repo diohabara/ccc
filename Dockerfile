@@ -10,5 +10,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
   libc6-dev \
   make \
   shellcheck \
+  shfmt \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
