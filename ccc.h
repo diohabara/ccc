@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+typedef struct Type Type;
 //
 // tokenize.c
 //
@@ -25,6 +26,8 @@ struct Token {
 };
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
+void error_tok(Token *tok, char *fmt, ...);
+Token *peek(char *s);
 Token *consume(char *op);
 char *strndup(char *p, int len);
 Token *consume_ident();
@@ -43,6 +46,7 @@ extern Token *token;
 typedef struct Var Var;
 struct Var {
   char *name;  // Variable name
+  Type *ty;    // Type
   int offset;  // Offset from RBP
 };
 typedef struct VarList VarList;
@@ -73,12 +77,14 @@ typedef enum {
   ND_NUM,        // Integer
   ND_ADDR,       // unary &
   ND_DEREF,      // unary *
+  ND_NULL,       // empty statement
 } NodeKind;
 // AST node type
 typedef struct Node Node;
 struct Node {
   NodeKind kind;  // Node kind
   Node *next;     // Next node
+  Type *ty;       // Type, e.g., int or pointer to int
   Token *tok;     // representative token
   Node *lhs;      // Left-hand side
   Node *rhs;      // Right-hand side
@@ -110,7 +116,18 @@ struct Function {
 Function *program();
 
 //
+// typing.c
+//
+typedef enum { TY_INT, TY_PTR } TypeKind;
+struct Type {
+  TypeKind kind;
+  Type *base;
+};
+Type *int_type();
+Type *pointer_to(Type *base);
+void add_type(Function *prog);
+
+//
 // codegen.c
 //
-
 void codegen(Function *prog);
