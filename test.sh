@@ -176,4 +176,13 @@ echo 'step23(support global variables)' && {
 	assert 32 'int x[4]; int main() { return sizeof(x); }'
 }
 
+echo 'step24(support char type)' && {
+	assert 0 'int main() { char x = 0; return x; }'
+	assert 1 'int main() { char x = 1; char y = 2; return x; }'
+	assert 2 'int main() { char x = 1; char y = 2; return y; }'
+	assert 1 'int main() { char x; return sizeof(x); }'
+	assert 4 'int main() { char x[4]; return sizeof(x); }'
+	assert 5 'int main() { return sub_char(7, 1, 3); } int sub_char(char a, char b, char c) { return a + b - c; }'
+}
+
 echo OK
