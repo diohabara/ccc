@@ -124,7 +124,18 @@ echo 'step16(unary pointer operator)' && {
 echo 'step17(force type definition and introduce `int` keyword)' && {
 	assert 1 'int main() { int x = 5; int y = 4; return pika(&x, y); } int pika(int* x, int y) { return *x - y; }'
 }
-
+echo 'step20(support `sizeof`)' && {
+	assert 8 'int main() { int x; return sizeof(x); }'
+	assert 8 'int main() { int x; return sizeof x; }'
+	assert 8 'int main() { int *x; return sizeof(x); }'
+	assert 32 'int main() { int x[4]; return sizeof(x); }'
+	assert 96 'int main() { int x[3][4]; return sizeof(x); }'
+	assert 32 'int main() { int x[3][4]; return sizeof(*x); }'
+	assert 8 'int main() { int x[3][4]; return sizeof(**x); }'
+	assert 9 'int main() { int x[3][4]; return sizeof(**x) + 1; }'
+	assert 9 'int main() { int x[3][4]; return sizeof **x + 1; }'
+	assert 8 'int main() { int x[3][4]; return sizeof(**x + 1); }'
+}
 echo 'step21(support array type)' && {
 	assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
 	assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'

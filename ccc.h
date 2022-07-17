@@ -79,6 +79,7 @@ typedef enum {
   ND_ADDR,       // unary &
   ND_DEREF,      // unary *
   ND_NULL,       // empty statement
+  ND_SIZEOF,     // "sizeof"
 } NodeKind;
 // AST node type
 typedef struct Node Node;
