@@ -165,4 +165,15 @@ echo 'step22(enable indexing array)' && {
 	assert 6 'int main() { int x[2][3]; int *y=x; y[6]=6; return x[2][0]; }'
 }
 
+echo 'step23(support global variables)' && {
+	assert 0 'int x; int main() { return x; }'
+	assert 3 'int x; int main() { x=3; return x; }'
+	assert 0 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[0]; }'
+	assert 1 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[1]; }'
+	assert 2 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[2]; }'
+	assert 3 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[3]; }'
+	assert 8 'int x; int main() { return sizeof(x); }'
+	assert 32 'int x[4]; int main() { return sizeof(x); }'
+}
+
 echo OK
