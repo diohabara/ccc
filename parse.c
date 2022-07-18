@@ -2,14 +2,10 @@
 
 VarList *locals;
 VarList *globals;
-// Find a local variable by name.
+VarList *scope;
+// Find a variable by name.
 Var *find_var(Token *tok) {
-  for (VarList *vl = locals; vl; vl = vl->next) {
-    Var *var = vl->var;
-    if (strlen(var->name) == tok->len && !memcmp(tok->str, var->name, tok->len))
-      return var;
-  }
-  for (VarList *vl = globals; vl; vl = vl->next) {
+  for (VarList *vl = scope; vl; vl = vl->next) {
     Var *var = vl->var;
     if (strlen(var->name) == tok->len && !memcmp(tok->str, var->name, tok->len))
       return var;
@@ -68,6 +64,10 @@ Var *push_var(char *name, Type *ty, bool is_local) {
     vl->next = globals;
     globals = vl;
   }
+  VarList *sc = calloc(1, sizeof(VarList));
+  sc->var = var;
+  sc->next = scope;
+  scope = sc;
   return var;
 }
 
@@ -286,10 +286,12 @@ Node *stmt() {
     Node head;
     head.next = NULL;
     Node *cur = &head;
+    VarList *sc = scope;
     while (!consume("}")) {
       cur->next = stmt();
       cur = cur->next;
     }
+    scope = sc;
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
@@ -405,6 +407,30 @@ Node *postfix() {
   return node;
 }
 
+// stmt_expr = "(" "{" stmt stmt* "}" ")"
+//
+// statement expression is a GNU C extension
+Node *stmt_expr(Token *tok) {
+  VarList *sc = scope;
+  Node *node = new_node(ND_STMT_EXPR, tok);
+  node->body = stmt();
+  Node *cur = node->body;
+
+  while (!consume("}")) {
+    cur->next = stmt();
+    cur = cur->next;
+  }
+  expect(")");
+
+  scope = sc;
+
+  if (cur->kind != ND_EXPR_STMT) {
+    error_tok(cur->tok, "stmt expr returning void is not supporsed");
+  }
+  *cur = *cur->lhs;
+  return node;
+}
+
 // func-args = "(" (assign ("," assign)*)? ")"
 Node *func_args() {
   if (consume(")")) return NULL;
@@ -418,11 +444,19 @@ Node *func_args() {
   return head;
 }
 
-// primary = "(" expr ")" | "sizeof" unary | ident func-args? | str | num
+// primary = "(" "{" stmt_expr_tail
+//         | "(" expr ")"
+//         | "sizeof" unary
+//         | ident func-args?
+//         | str
+//         | num
 // args = "(" ident ("," ident)* ")"
 Node *primary() {
   Token *tok;
-  if (consume("(")) {
+  if (tok = consume("(")) {
+    if (consume("{")) {
+      return stmt_expr(tok);
+    }
     Node *node = expr();
     expect(")");
     return node;

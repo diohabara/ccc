@@ -14,17 +14,23 @@ If you develop in [`Dev Container`](https://code.visualstudio.com/docs/remote/co
 
 ### build
 
+When you want to build Docker env,
+
 ```bash
 docker build . -t ccc
 ```
 
 ### help
 
+When you want to know what options exist,
+
 ```bash
 docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make help
 ```
 
 ### lint/format
+
+When you want to check/format source code,
 
 ```bash
 docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make lint
@@ -36,12 +42,6 @@ When you want to see if the compiler is working,
 
 ```bash
 docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make test
-```
-
-When you debug something about the testing,
-
-```bash
-docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make debug
 ```
 
 ### debug

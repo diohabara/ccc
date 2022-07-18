@@ -15,15 +15,15 @@ help:
 	@echo "  clean: remove object files"
 
 lint:
-	./lint.sh
+	clang-format -i ./*.c
+	clang-format -i ./*.h
 
 test: ccc
-	./test.sh
-
-debug: ccc
-	bash -x ./test.sh
+	./ccc tests > tmp.s
+	gcc -static -o tmp tmp.s
+	./tmp
 
 clean:
 	rm -f ccc *.o *~ tmp*
 
-.PHONY: help lint test debug clean
+.PHONY: help lint test lean
