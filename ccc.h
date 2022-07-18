@@ -13,6 +13,7 @@ typedef struct Type Type;
 typedef enum {
   TK_RESERVED,  // Keywords or punctuators
   TK_IDENT,     // Identifiers
+  TK_STR,       // string literals
   TK_NUM,       // Integer literals
   TK_EOF,       // End-of-file markers
 } TokenKind;
@@ -24,6 +25,8 @@ struct Token {
   int val;         // If kind is TK_NUM, its value
   char *str;       // Token string
   int len;         // Token length
+  char *contents;  // string literal contents including terminating '\0'
+  char cont_len;   // string literal length
 };
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
@@ -51,6 +54,9 @@ struct Var {
   bool is_local;  // local or global
   // local variable
   int offset;  // Offset from RBP
+  // global variable
+  char *contents;
+  int cont_len;
 };
 typedef struct VarList VarList;
 struct VarList {

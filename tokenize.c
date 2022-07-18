@@ -141,6 +141,62 @@ char *starts_with_reserved(char *p) {
     }
   return NULL;
 }
+
+char get_escape_char(char c) {
+  switch (c) {
+    case 'a':
+      return '\a';
+    case 'b':
+      return '\b';
+    case 't':
+      return '\t';
+    case 'n':
+      return '\n';
+    case 'v':
+      return '\v';
+    case 'f':
+      return '\f';
+    case 'r':
+      return '\r';
+    case 'e':
+      return '\e';
+    case '0':
+      return '\0';
+    default:
+      return c;
+  }
+}
+
+Token *read_string_literal(Token *cur, char *start) {
+  char *p = start + 1;
+  char buf[1024];
+  int len = 0;
+
+  for (;;) {
+    if (len == sizeof(buf)) {
+      error_at(start, "string literal too large");
+    }
+    if (*p == '\0') {
+      error_at(start, "unclosed string literal");
+    }
+    if (*p == '"') {
+      break;
+    }
+    if (*p == '\\') {
+      p++;
+      buf[len++] = get_escape_char(*p++);
+    } else {
+      buf[len++] = *p++;
+    }
+  }
+  Token *tok = new_token(TK_STR, cur, start, p - start + 1);
+  tok->contents = malloc(len + 1);
+  memcpy(tok->contents, buf, len);
+  tok->contents[len] = '\0';
+  tok->cont_len = len + 1;
+  return tok;
+}
+
 // Tokenize `user_input` and returns new tokens.
 Token *tokenize() {
   char *p = user_input;
@@ -171,6 +227,12 @@ Token *tokenize() {
       char *q = p++;
       while (is_alnum(*p)) p++;
       cur = new_token(TK_IDENT, cur, q, p - q);
+      continue;
+    }
+    // string literal
+    if (*p == '"') {
+      cur = read_string_literal(cur, p);
+      p += cur->len;
       continue;
     }
     // Integer literal
