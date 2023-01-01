@@ -69,5 +69,4 @@ make clean
 ## references
 
 - <https://www.sigbus.info/compilerbook>
-- <https://github.com/rui314/ccc>
-- <https://github.com/rui314/ccc/tree/reference>
+- <https://github.com/rui314/chibicc>
