@@ -6,7 +6,7 @@ An experimental C compiler.
 
 ## how to develop
 
-If you develop in [`Dev Container`](https://code.visualstudio.com/docs/remote/containers), you do not have to put `docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc` at the top of commands. You simply execute `make test`, for example.
+If you develop in [`Dev Container`](https://code.visualstudio.com/docs/remote/containers), you do not have to put `docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc` at the top of commands. You simply execute `make test`, for example.
 
 ### dependencies
 
@@ -54,7 +54,7 @@ docker run -i --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --platform=
 
 If you want to debug `main() { a = 1; b = 2; return 3; }` in `gdb`,
 
-```gdb
+```bash
 r 'main() { a = 1; b = 2; return 3; }'
 ```
 
