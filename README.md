@@ -25,7 +25,7 @@ docker build . -t ccc
 When you want to know what options exist,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make help
+docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make help
 ```
 
 ### lint/format
@@ -33,7 +33,7 @@ docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make help
 When you want to check/format source code,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make lint
+docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make lint
 ```
 
 ### test
@@ -41,7 +41,7 @@ docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make lint
 When you want to see if the compiler is working,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:src" -w/src ccc make test
+docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make test
 ```
 
 ### debug
