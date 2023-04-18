@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 typedef struct Type Type;
+typedef struct Member Member;
 //
 // tokenize.c
 //
@@ -91,6 +92,7 @@ typedef enum {
   ND_DEREF,      // unary *
   ND_NULL,       // empty statement
   ND_SIZEOF,     // "sizeof"
+  ND_MEMBER,     // . (struct member access)
 } NodeKind;
 // AST node type
 typedef struct Node Node;
@@ -114,6 +116,9 @@ struct Node {
   Node *args;
   Var *var;  // Used if kind == ND_VAR
   int val;   // Used if kind == ND_NUM
+  // Struct member access
+  char *member_name;
+  Member *member;
 };
 
 typedef struct Function Function;
@@ -135,11 +140,20 @@ Program *program();
 //
 // type.c
 //
-typedef enum { TY_CHAR, TY_INT, TY_PTR, TY_ARRAY } TypeKind;
+typedef enum { TY_CHAR, TY_INT, TY_PTR, TY_ARRAY, TY_STRUCT } TypeKind;
 struct Type {
   TypeKind kind;
-  Type *base;
-  int array_size;
+  Type *base;       // pointer or array
+  int array_size;   // array
+  Member *members;  // struct
+};
+
+// Struct member
+struct Member {
+  Member *next;
+  Type *ty;
+  char *name;
+  int offset;
 };
 Type *char_type();
 Type *int_type();
