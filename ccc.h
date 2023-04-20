@@ -143,6 +143,7 @@ Program *program();
 typedef enum { TY_CHAR, TY_INT, TY_PTR, TY_ARRAY, TY_STRUCT } TypeKind;
 struct Type {
   TypeKind kind;
+  int align;        // alignment
   Type *base;       // pointer or array
   int array_size;   // array
   Member *members;  // struct
@@ -155,6 +156,7 @@ struct Member {
   char *name;
   int offset;
 };
+int align_to(int n, int align);
 Type *char_type();
 Type *int_type();
 Type *pointer_to(Type *base);
