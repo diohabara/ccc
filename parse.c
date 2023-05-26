@@ -173,8 +173,12 @@ Type *basetype() {
   Type *ty;
   if (consume("char")) {
     ty = char_type();
+  } else if (consume("short")) {
+    ty = short_type();
   } else if (consume("int")) {
     ty = int_type();
+  } else if (consume("long")) {
+    ty = long_type();
   } else if (consume("struct")) {
     ty = struct_decl();
   } else {
@@ -352,7 +356,8 @@ Node *read_expr_stmt() {
 }
 
 bool is_typename() {
-  return peek("char") || peek("int") || peek("struct") || find_typedef(token);
+  return peek("char") || peek("short") || peek("int") || peek("long") ||
+         peek("struct") || find_typedef(token);
 }
 
 // stmt = "return" expr ";"
