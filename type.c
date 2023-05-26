@@ -10,7 +10,7 @@ Type* new_type(TypeKind kind, int align) {
 
 Type* char_type() { return new_type(TY_CHAR, 1); }
 
-Type* int_type() { return new_type(TY_INT, 8); }
+Type* int_type() { return new_type(TY_INT, 4); }
 
 Type* pointer_to(Type* base) {
   Type* ty = new_type(TY_PTR, 8);
@@ -30,6 +30,7 @@ int size_of(Type* ty) {
     case TY_CHAR:
       return 1;
     case TY_INT:
+      return 4;
     case TY_PTR:
       return 8;
     case TY_ARRAY:
