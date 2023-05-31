@@ -10,6 +10,8 @@ Type* new_type(TypeKind kind, int align) {
 
 Type* void_type() { return new_type(TY_VOID, 1); }
 
+Type* bool_type() { return new_type(TY_BOOL, 1); }
+
 Type* char_type() { return new_type(TY_CHAR, 1); }
 
 Type* short_type() { return new_type(TY_SHORT, 2); }
@@ -40,6 +42,7 @@ Type* array_of(Type* base, int size) {
 int size_of(Type* ty) {
   assert(ty->kind != TY_VOID);
   switch (ty->kind) {
+    case TY_BOOL:
     case TY_CHAR:
       return 1;
     case TY_SHORT:
