@@ -172,33 +172,98 @@ Program *program() {
 }
 
 // type-specifier = builtin-type | struct-decl | typedef-name
-// builtin-type   = "void" | "_Bool" | "char" | "short" | "int" | "long"
+// builtin-type   = "void"
+//                | "_Bool"
+//                | "char"
+//                | "short" | "short" "int" | "int" "short"
+//                | "int"
+//                | "long" | "long" "int" | "int" "long"
+// note that "typedef" can appear anywhere in a function body.
 Type *type_specifier() {
   if (!is_typename(token)) {
     error_tok(token, "typename expected");
   }
-  if (consume("void")) {
-    return void_type();
+  Type *ty = NULL;
+  enum {
+    VOID = 1 << 1,
+    BOOL = 1 << 3,
+    CHAR = 1 << 5,
+    SHORT = 1 << 7,
+    INT = 1 << 9,
+    LONG = 1 << 11,
+  };
+
+  int base_type = 0;
+  Type *user_type = NULL;
+
+  bool is_typedef = false;
+
+  for (;;) {
+    // read one token at a time
+    Token *tok = token;
+    if (consume("typedef")) {
+      is_typedef = true;
+    } else if (consume("void")) {
+      base_type += VOID;
+    } else if (consume("_Bool")) {
+      base_type += BOOL;
+    } else if (consume("char")) {
+      base_type += CHAR;
+    } else if (consume("short")) {
+      base_type += SHORT;
+    } else if (consume("int")) {
+      base_type += INT;
+    } else if (consume("long")) {
+      base_type += LONG;
+    } else if (peek("struct")) {
+      if (base_type || user_type) {
+        break;
+      }
+      user_type = struct_decl();
+    } else {
+      if (base_type || user_type) {
+        break;
+      }
+      Type *ty = find_typedef(token);
+      if (!ty) {
+        break;
+      }
+      token = token->next;
+      user_type = ty;
+    }
+
+    switch (base_type) {
+      case VOID:
+        ty = void_type();
+        break;
+      case BOOL:
+        ty = bool_type();
+        break;
+      case CHAR:
+        ty = char_type();
+        break;
+      case SHORT:
+      case SHORT + INT:
+        ty = short_type();
+        break;
+      case INT:
+        ty = int_type();
+        break;
+      case LONG:
+      case LONG + INT:
+        ty = long_type();
+        break;
+      case 0:
+        // if there's no type specifier, it becomes int
+        // e.g., `typedef x` defines `x` as int
+        ty = user_type ? user_type : int_type();
+        break;
+      default:
+        error_tok(token, "invalid type");
+    }
   }
-  if (consume("_Bool")) {
-    return bool_type();
-  }
-  if (consume("char")) {
-    return char_type();
-  }
-  if (consume("short")) {
-    return short_type();
-  }
-  if (consume("int")) {
-    return int_type();
-  }
-  if (consume("long")) {
-    return long_type();
-  }
-  if (consume("struct")) {
-    return struct_decl();
-  }
-  return find_var(consume_ident())->type_def;
+  ty->is_typedef = is_typedef;
+  return ty;
 }
 
 // declarator = "*"* ("(" declarator ")" | ident) type-suffix
@@ -242,6 +307,7 @@ void push_tag_scope(Token *tok, Type *ty) {
 //             | "struct" ident? "{" struct-member "}"
 Type *struct_decl() {
   // read struct tag
+  expect("struct");
   Token *tag = consume_ident();
   if (tag && !peek("{")) {
     TagScope *sc = find_tag(tag);
@@ -382,6 +448,13 @@ Node *declaration() {
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
 
+  if (ty->is_typedef) {
+    expect(";");
+    ty->is_typedef = false;
+    push_scope(name)->type_def = ty;
+    return new_node(ND_NULL, tok);
+  }
+
   if (ty->kind == TY_VOID) {
     error_tok(tok, "variable declared void");
   }
@@ -405,8 +478,9 @@ Node *read_expr_stmt() {
 }
 
 bool is_typename() {
-  return peek("void") || peek("_Bool") || peek("char") || peek("short") ||
-         peek("int") || peek("long") || peek("struct") || find_typedef(token);
+  return peek("typedef") || peek("void") || peek("_Bool") || peek("char") ||
+         peek("short") || peek("int") || peek("long") || peek("struct") ||
+         find_typedef(token);
 }
 
 // stmt = "return" expr ";"
@@ -414,7 +488,6 @@ bool is_typename() {
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 //      | "{" stmt* "}"
-//      | "typedef" type-specifier declarator type-suffix ";"
 //      | declaration
 //      | expr ";"
 Node *stmt() {
@@ -475,15 +548,6 @@ Node *stmt() {
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
-  }
-  if (tok = consume("typedef")) {
-    Type *ty = type_specifier();
-    char *name = NULL;
-    ty = declarator(ty, &name);
-    ty = type_suffix(ty);
-    expect(";");
-    push_scope(name)->type_def = ty;
-    return new_node(ND_NULL, tok);
   }
   if (is_typename()) {
     return declaration();

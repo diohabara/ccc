@@ -154,6 +154,7 @@ typedef enum {
 } TypeKind;
 struct Type {
   TypeKind kind;
+  bool is_typedef;  // typedef
   int align;        // alignment
   Type *base;       // pointer or array
   int array_size;   // array
