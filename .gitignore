@@ -14,3 +14,6 @@ tmp*
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# for debug
+test
