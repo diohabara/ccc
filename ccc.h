@@ -93,6 +93,7 @@ typedef enum {
   ND_NULL,       // empty statement
   ND_SIZEOF,     // "sizeof"
   ND_MEMBER,     // . (struct member access)
+  ND_CAST,       // Type cast
 } NodeKind;
 // AST node type
 typedef struct Node Node;

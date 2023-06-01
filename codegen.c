@@ -8,6 +8,25 @@ char *argreg8[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 int labelseq = 0;
 char *funcname;
 
+void truncate(Type *ty) {
+  printf("  pop rax\n");
+
+  if (ty->kind == TY_BOOL) {
+    printf("  cmp rax, 0\n");
+    printf("  setne al\n");
+  }
+
+  int sz = size_of(ty);
+  if (sz == 1) {
+    printf("  movsx rax, al\n");
+  } else if (sz == 2) {
+    printf("  movsx rax, ax\n");
+  } else if (sz == 4) {
+    printf("  movsxd rax, eax\n");
+  }
+  printf("  push rax\n");
+}
+
 void gen(Node *node);
 
 // Pushes the given node's address to the stack.
@@ -207,6 +226,10 @@ void gen(Node *node) {
       gen(node->lhs);
       printf("  pop rax\n");
       printf("  jmp .Lreturn.%s\n", funcname);
+      return;
+    case ND_CAST:
+      gen(node->lhs);
+      truncate(node->ty);
       return;
   }
 
