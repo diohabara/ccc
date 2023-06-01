@@ -192,6 +192,28 @@ char get_escape_char(char c) {
   }
 }
 
+Token *read_char_string(Token *cur, char *start) {
+  char *p = start + 1;
+  if (*p == '\0') {
+    error_at(start, "unclosed char literal");
+  }
+  char c;
+  if (*p == '\\') {
+    p++;
+    c = get_escape_char(*p++);
+  } else {
+    c = *p++;
+  }
+
+  if (*p != '\'') {
+    error_at(start, "char literal too long");
+  }
+  p++;
+  Token *tok = new_token(TK_NUM, cur, start, p - start);
+  tok->val = c;
+  return tok;
+}
+
 Token *read_string_literal(Token *cur, char *start) {
   char *p = start + 1;
   char buf[1024];
@@ -269,6 +291,12 @@ Token *tokenize() {
       char *q = p++;
       while (is_alnum(*p)) p++;
       cur = new_token(TK_IDENT, cur, q, p - q);
+      continue;
+    }
+    // char literal
+    if (*p == '\'') {
+      cur = read_char_string(cur, p);
+      p += cur->len;
       continue;
     }
     // string literal
