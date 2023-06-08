@@ -6,7 +6,7 @@ An experimental C compiler.
 
 ## how to develop
 
-If you develop in [`Dev Container`](https://code.visualstudio.com/docs/remote/containers), you do not have to put `docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc` at the top of commands. You simply execute `make test`, for example.
+If you're using Ubuntu, you can use the commands without `x`.
 
 ### dependencies
 
@@ -25,7 +25,7 @@ docker build . -t ccc
 When you want to know what options exist,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make help
+make help
 ```
 
 ### lint/format
@@ -33,7 +33,7 @@ docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make help
 When you want to check/format source code,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make lint
+make lintx
 ```
 
 ### test
@@ -41,7 +41,7 @@ docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make lint
 When you want to see if the compiler is working,
 
 ```bash
-docker run --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc make test
+make testx
 ```
 
 ### debug
@@ -70,3 +70,4 @@ make clean
 
 - <https://www.sigbus.info/compilerbook>
 - <https://github.com/rui314/chibicc>
+
