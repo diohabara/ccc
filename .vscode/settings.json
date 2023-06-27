@@ -1,7 +1,8 @@
 {
   "files.associations": {
     "*.v": "coq",
-    "stdbool.h": "c"
+    "stdbool.h": "c",
+    "tests": "cpp"
   },
   "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
 }
