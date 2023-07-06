@@ -134,6 +134,11 @@ bool is_typename();
 Node *stmt();
 Node *expr();
 Node *assign();
+Node *bitand();
+Node * bitor ();
+Node *bitxor();
+Node *logand();
+Node *logor();
 Node *equality();
 Node *relational();
 Node *add();
@@ -676,14 +681,88 @@ Node *stmt() {
   return node;
 }
 
-// expr = assign
-Node *expr() { return assign(); }
-// assign = equality ("=" assign)?
+// expr = assign ("," expr)?
+Node *expr() {
+  Node *node = assign();
+  Token *tok;
+  while (tok = consume(",")) {
+    node = new_unary(ND_EXPR_STMT, node, node->tok);
+    node = new_binary(ND_COMMA, node, assign(), tok);
+  }
+  return node;
+}
+// assign = logor (assign-op assign)?
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 Node *assign() {
-  Node *node = equality();
+  Node *node = logor();
   Token *tok;
   if (tok = consume("=")) {
     node = new_binary(ND_ASSIGN, node, assign(), tok);
+  }
+  if (tok = consume("+=")) {
+    node = new_binary(ND_A_ADD, node, assign(), tok);
+  }
+  if (tok = consume("-=")) {
+    node = new_binary(ND_A_SUB, node, assign(), tok);
+  }
+  if (tok = consume("*=")) {
+    node = new_binary(ND_A_MUL, node, assign(), tok);
+  }
+  if (tok = consume("/=")) {
+    node = new_binary(ND_A_DIV, node, assign(), tok);
+  }
+  if (tok = consume("%=")) {
+    node = new_binary(ND_A_MOD, node, assign(), tok);
+  }
+  return node;
+}
+
+// logor = logand ("||" logand)*
+Node *logor() {
+  Node *node = logand();
+  Token *tok;
+  while (tok = consume("||")) {
+    node = new_binary(ND_LOGOR, node, logand(), tok);
+  }
+  return node;
+}
+
+// logand = bitor ("&&" bitor)*
+Node *logand() {
+  Node *node = bitor ();
+  Token *tok;
+  while (tok = consume("&&")) {
+    node = new_binary(ND_LOGAND, node, bitor (), tok);
+  }
+  return node;
+}
+
+// bitor = bitxor ("|" bitxor)*
+Node * bitor () {
+  Node *node = bitxor();
+  Token *tok;
+  while (tok = consume("|")) {
+    node = new_binary(ND_BITOR, node, bitxor(), tok);
+  }
+  return node;
+}
+
+// bitxor = bitand ("^" bitand)*
+Node *bitxor() {
+  Node *node = bitand();
+  Token *tok;
+  while (tok = consume("^")) {
+    node = new_binary(ND_BITXOR, node, bitand(), tok);
+  }
+  return node;
+}
+
+// bitand = equality ("&" equality)*
+Node *bitand() {
+  Node *node = equality();
+  Token *tok;
+  while (tok = consume("&")) {
+    node = new_binary(ND_BITAND, node, equality(), tok);
   }
   return node;
 }
@@ -764,7 +843,8 @@ Node *cast() {
   return unary();
 }
 
-// unary = ("+" | "-" | "*" | "&")? cast
+// unary = ("+" | "-" | "*" | "&" | "!" | "~")? cast
+//       | ("++" | "--") unary
 //       | postfix
 Node *unary() {
   Token *tok;
@@ -780,10 +860,22 @@ Node *unary() {
   if (tok = consume("*")) {
     return new_unary(ND_DEREF, cast(), tok);
   }
+  if (tok = consume("!")) {
+    return new_unary(ND_NOT, cast(), tok);
+  }
+  if (tok = consume("~")) {
+    return new_unary(ND_BITNOT, cast(), tok);
+  }
+  if (tok = consume("++")) {
+    return new_unary(ND_PRE_INC, unary(), tok);
+  }
+  if (tok = consume("--")) {
+    return new_unary(ND_PRE_DEC, unary(), tok);
+  }
   return postfix();
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 Node *postfix() {
   Node *node = primary();
   Token *tok;
@@ -806,6 +898,14 @@ Node *postfix() {
       node = new_unary(ND_DEREF, node, tok);
       node = new_unary(ND_MEMBER, node, tok);
       node->member_name = expect_ident();
+      continue;
+    }
+    if (tok = consume("++")) {
+      node = new_unary(ND_POST_INC, node, tok);
+      continue;
+    }
+    if (tok = consume("--")) {
+      node = new_unary(ND_POST_DEC, node, tok);
       continue;
     }
     return node;

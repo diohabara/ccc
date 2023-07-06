@@ -102,6 +102,18 @@ void store(Type *ty) {
   printf("  push rdi\n");
 }
 
+void inc(Type *ty) {
+  printf("  pop rax\n");
+  printf("  add rax, %d\n", ty->base ? size_of(ty->base) : 1);
+  printf("  push rax\n");
+}
+
+void dec(Type *ty) {
+  printf("  pop rax\n");
+  printf("  sub rax, %d\n", ty->base ? size_of(ty->base) : 1);
+  printf("  push rax\n");
+}
+
 // Generate code for a given node.
 void gen(Node *node) {
   switch (node->kind) {
@@ -131,6 +143,10 @@ void gen(Node *node) {
       gen(node->rhs);
       store(node->ty);
       return;
+    case ND_COMMA:
+      gen(node->lhs);
+      gen(node->rhs);
+      return;
     case ND_ADDR:
       gen_addr(node->lhs);
       return;
@@ -140,6 +156,40 @@ void gen(Node *node) {
         load(node->ty);
       }
       return;
+    case ND_LOGAND: {
+      int seq = labelseq++;
+      gen(node->lhs);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je  .L.false.%d\n", seq);
+      gen(node->rhs);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je  .L.false.%d\n", seq);
+      printf("  push 1\n");
+      printf("  jmp .L.end.%d\n", seq);
+      printf(".L.false.%d:\n", seq);
+      printf("  push 0\n");
+      printf(".L.end.%d:\n", seq);
+      return;
+    }
+    case ND_LOGOR: {
+      int seq = labelseq++;
+      gen(node->lhs);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  jne .L.true.%d\n", seq);
+      gen(node->rhs);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  jne .L.true.%d\n", seq);
+      printf("  push 0\n");
+      printf("  jmp .L.end.%d\n", seq);
+      printf(".L.true.%d:\n", seq);
+      printf("  push 1\n");
+      printf(".L.end.%d:\n", seq);
+      return;
+    }
     case ND_IF: {
       int seq = labelseq++;
       if (node->els) {
@@ -233,6 +283,90 @@ void gen(Node *node) {
       gen(node->lhs);
       truncate(node->ty);
       return;
+    case ND_PRE_INC:
+      gen_lval(node->lhs);
+      printf("  push [rsp]\n");
+      load(node->ty);
+      inc(node->ty);
+      store(node->ty);
+      return;
+    case ND_PRE_DEC:
+      gen_lval(node->lhs);
+      printf("  push [rsp]\n");
+      load(node->ty);
+      dec(node->ty);
+      store(node->ty);
+      return;
+    case ND_POST_INC:
+      gen_lval(node->lhs);
+      printf("  push [rsp]\n");
+      load(node->ty);
+      inc(node->ty);
+      store(node->ty);
+      dec(node->ty);
+      return;
+    case ND_POST_DEC:
+      gen_lval(node->lhs);
+      printf("  push [rsp]\n");
+      load(node->ty);
+      dec(node->ty);
+      store(node->ty);
+      inc(node->ty);
+      return;
+    case ND_A_ADD:
+    case ND_A_SUB:
+    case ND_A_MUL:
+    case ND_A_DIV:
+    case ND_A_MOD:
+      gen_lval(node->lhs);
+      printf("  push [rsp]\n");
+      load(node->ty);
+      gen(node->rhs);
+      printf("  pop rdi\n");
+      printf("  pop rax\n");
+      switch (node->kind) {
+        case ND_A_ADD:
+          if (node->ty->base) {
+            printf("  imul rdi, %d\n", size_of(node->ty->base));
+          }
+          printf("  add rax, rdi\n");
+          break;
+        case ND_A_SUB:
+          if (node->ty->base) {
+            printf("  imul rdi, %d\n", size_of(node->ty->base));
+          }
+          printf("  sub rax, rdi\n");
+          break;
+        case ND_A_MUL:
+          printf("  imul rax, rdi\n");
+          break;
+        case ND_A_DIV:
+          printf("  cqo\n");
+          printf("  idiv rdi\n");
+          break;
+        case ND_A_MOD:
+          printf("  cqo\n");
+          printf("  idiv rdi\n");
+          printf("  mov rax, rdx\n");
+          break;
+      }
+      printf("  push rax\n");
+      store(node->ty);
+      return;
+    case ND_NOT:
+      gen(node->lhs);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  sete al\n");
+      printf("  movzb rax, al\n");
+      printf("  push rax\n");
+      return;
+    case ND_BITNOT:
+      gen(node->lhs);
+      printf("  pop rax\n");
+      printf("  not rax\n");
+      printf("  push rax\n");
+      return;
   }
 
   gen(node->lhs);
@@ -278,6 +412,15 @@ void gen(Node *node) {
       printf("  cmp rax, rdi\n");
       printf("  setle al\n");
       printf("  movzb rax, al\n");
+      break;
+    case ND_BITAND:
+      printf("  and rax, rdi\n");
+      break;
+    case ND_BITOR:
+      printf("  or rax, rdi\n");
+      break;
+    case ND_BITXOR:
+      printf("  xor rax, rdi\n");
       break;
   }
   printf("  push rax\n");

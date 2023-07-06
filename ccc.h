@@ -78,6 +78,7 @@ typedef enum {
   ND_LT,         // <
   ND_LE,         // <=
   ND_ASSIGN,     // =
+  ND_COMMA,      // ,
   ND_RETURN,     // "return"
   ND_IF,         // "if"
   ND_WHILE,      // "while"
@@ -94,6 +95,22 @@ typedef enum {
   ND_SIZEOF,     // "sizeof"
   ND_MEMBER,     // . (struct member access)
   ND_CAST,       // Type cast
+  ND_PRE_INC,    // pre ++
+  ND_PRE_DEC,    // pre --
+  ND_POST_INC,   // post ++
+  ND_POST_DEC,   // post --
+  ND_A_ADD,      // +=
+  ND_A_SUB,      // -=
+  ND_A_MUL,      // *=
+  ND_A_DIV,      // /=
+  ND_A_MOD,      // %=
+  ND_NOT,        // !
+  ND_BITNOT,     // ~
+  ND_BITAND,     // &
+  ND_BITOR,      // |
+  ND_BITXOR,     // ^
+  ND_LOGAND,     // &&
+  ND_LOGOR,      // ||
 } NodeKind;
 // AST node type
 typedef struct Node Node;

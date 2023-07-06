@@ -104,6 +104,14 @@ void visit(Node* node) {
     case ND_NE:
     case ND_LT:
     case ND_LE:
+    case ND_NOT:
+    case ND_BITAND:
+    case ND_BITOR:
+    case ND_BITXOR:
+    case ND_LOGAND:
+    case ND_LOGOR:
+      node->ty = int_type();
+      return;
     case ND_NUM:
       if (node->val == (int)node->val) {
         node->ty = int_type();
@@ -132,6 +140,19 @@ void visit(Node* node) {
       node->ty = node->lhs->ty;
       return;
     case ND_ASSIGN:
+    case ND_PRE_INC:
+    case ND_PRE_DEC:
+    case ND_POST_INC:
+    case ND_POST_DEC:
+    case ND_A_ADD:
+    case ND_A_SUB:
+    case ND_A_MUL:
+    case ND_A_DIV:
+    case ND_A_MOD:
+    case ND_BITNOT:
+      node->ty = node->lhs->ty;
+      return;
+    case ND_COMMA:
       node->ty = node->lhs->ty;
       return;
     case ND_MEMBER: {

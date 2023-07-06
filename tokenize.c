@@ -159,7 +159,8 @@ char *starts_with_reserved(char *p) {
     }
   }
   // Multi-letter punctuator
-  static char *ops[] = {"==", "!=", "<=", ">=", "->"};
+  static char *ops[] = {"==", "!=", "<=", ">=", "->", "++", "--",
+                        "+=", "-=", "*=", "/=", "&=", "&&", "||"};
   for (int i = 0; i < sizeof(ops) / sizeof(*ops); i++)
     if (startswith(p, ops[i])) {
       return ops[i];
@@ -282,7 +283,7 @@ Token *tokenize() {
       continue;
     }
     // Single-letter punctuator
-    if (strchr("+-*/()<>;={},&[].", *p)) {
+    if (strchr("+-*/()<>;={},&[].,!~|^", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
