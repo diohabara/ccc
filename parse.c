@@ -19,11 +19,28 @@ struct TagScope {
   Type *ty;
 };
 
+typedef struct {
+  VarScope *var_scope;
+  TagScope *tag_scope;
+} Scope;
+
 VarList *locals;
 VarList *globals;
 
 VarScope *var_scope;
 TagScope *tag_scope;
+
+Scope *enter_scope() {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->var_scope = var_scope;
+  sc->tag_scope = tag_scope;
+  return sc;
+}
+
+void leave_scope(Scope *sc) {
+  var_scope = sc->var_scope;
+  tag_scope = sc->tag_scope;
+}
 
 // Find a variable or a typedef by name.
 VarScope *find_var(Token *tok) {
@@ -85,11 +102,13 @@ VarScope *push_scope(char *name) {
   return sc;
 }
 
-Var *push_var(char *name, Type *ty, bool is_local) {
+Var *push_var(char *name, Type *ty, bool is_local, Token* tok) {
   Var *var = calloc(1, sizeof(Var));
   var->name = name;
   var->ty = ty;
   var->is_local = is_local;
+  var->tok = tok;
+
   VarList *vl = calloc(1, sizeof(VarList));
   vl->var = var;
   if (is_local) {
@@ -324,13 +343,14 @@ Type *abstract_declarator(Type *ty) {
   return type_suffix(ty);
 }
 
-// type-suffix = ("[" num "]" type-suffix)?
+// type-suffix = ("[" num? "]" type-suffix)?
 Type *type_suffix(Type *ty) {
   if (!consume("[")) {
     return ty;
   }
-  int sz = expect_number();
-  expect("]");
+  
+  int sz = 0;
+  bool is_incomplete = true;
   ty = type_suffix(ty);
   return array_of(ty, sz);
 }

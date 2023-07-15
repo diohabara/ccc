@@ -54,6 +54,7 @@ typedef struct Var Var;
 struct Var {
   char *name;     // Variable name
   Type *ty;       // Type
+  Token *tok;     // for error message
   bool is_local;  // local or global
   // local variable
   int offset;  // Offset from RBP
@@ -173,13 +174,14 @@ typedef enum {
 } TypeKind;
 struct Type {
   TypeKind kind;
-  bool is_typedef;  // typedef
-  bool is_static;   // static
-  int align;        // alignment
-  Type *base;       // pointer or array
-  int array_size;   // array
-  Member *members;  // struct
-  Type *return_ty;  // function
+  bool is_typedef;     // typedef
+  bool is_static;      // static
+  bool is_incomplete;  // incomplete array
+  int align;           // alignment
+  Type *base;          // pointer or array
+  int array_size;      // array
+  Member *members;     // struct
+  Type *return_ty;     // function
 };
 
 // Struct member
@@ -200,7 +202,7 @@ Type *enum_type();
 Type *func_type(Type *return_ty);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
-int size_of(Type *ty);
+int size_of(Type *ty, Token *tok);
 void add_type(Program *prog);
 
 //
