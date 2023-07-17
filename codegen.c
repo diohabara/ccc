@@ -305,7 +305,7 @@ void gen(Node *node) {
       load(node->ty);
       inc(node);
       store(node->ty);
-      dec(node->ty);
+      dec(node);
       return;
     case ND_POST_DEC:
       gen_lval(node->lhs);
@@ -313,7 +313,7 @@ void gen(Node *node) {
       load(node->ty);
       dec(node);
       store(node->ty);
-      inc(node->ty);
+      inc(node);
       return;
     case ND_A_ADD:
     case ND_A_SUB:

@@ -188,6 +188,7 @@ struct Type {
 struct Member {
   Member *next;
   Type *ty;
+  Token *tok;
   char *name;
   int offset;
 };
