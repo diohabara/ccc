@@ -89,6 +89,8 @@ typedef enum {
   ND_CONTINUE,   // "continue"
   ND_GOTO,       // "goto"
   ND_LABEL,      // Labeled statement
+  ND_SWITCH,     // "switch"
+  ND_CASE,       // "case"
   ND_FUNCALL,    // Function call
   ND_EXPR_STMT,  // Expression statement
   ND_STMT_EXPR,  // statement expression
@@ -139,6 +141,11 @@ struct Node {
   Node *args;
   // Goto or labeled statement
   char *label_name;
+  // switch-cases
+  Node *case_next;
+  Node *default_case;
+  int case_label;
+  int case_end_label;
   Var *var;  // Used if kind == ND_VAR
   long val;  // Used if kind == ND_NUM
   // Struct member access

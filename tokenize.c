@@ -149,10 +149,11 @@ bool is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
 char *starts_with_reserved(char *p) {
   // Keyword
-  static char *kw[] = {"return", "if",    "else",     "while",  "for",
-                       "char",   "int",   "sizeof",   "struct", "typedef",
-                       "short",  "long",  "void",     "_Bool",  "enum",
-                       "static", "break", "continue", "goto"};
+  static char *kw[] = {"return", "if",     "else",     "while",  "for",
+                       "char",   "int",    "sizeof",   "struct", "typedef",
+                       "short",  "long",   "void",     "_Bool",  "enum",
+                       "static", "break",  "continue", "goto",   "switch",
+                       "case",   "default"};
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     int len = strlen(kw[i]);
     if (startswith(p, kw[i]) && !is_alnum(p[len])) {
