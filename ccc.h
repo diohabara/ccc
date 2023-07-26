@@ -122,6 +122,7 @@ typedef enum {
   ND_SHR,        // >>
   ND_A_SHL,      // <<=
   ND_A_SHR,      // >>=
+  ND_TERNARY,    // ? :
 } NodeKind;
 // AST node type
 typedef struct Node Node;

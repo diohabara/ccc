@@ -161,6 +161,7 @@ bool is_typename();
 Node *stmt();
 Node *expr();
 Node *assign();
+Node *conditional();
 Node *bitand();
 Node * bitor ();
 Node *bitxor();
@@ -820,10 +821,10 @@ Node *expr() {
   }
   return node;
 }
-// assign = logor (assign-op assign)?
+// assign = conditional (assign-op assign)?
 // assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>="
 Node *assign() {
-  Node *node = logor();
+  Node *node = conditional();
   Token *tok;
   if (tok = consume("=")) {
     node = new_binary(ND_ASSIGN, node, assign(), tok);
@@ -850,6 +851,21 @@ Node *assign() {
     node = new_binary(ND_A_SHR, node, assign(), tok);
   }
   return node;
+}
+
+// conditional = logor ("?" expr ":" condtional)?
+Node *conditional() {
+  Node *node = logor();
+  Token *tok = consume("?");
+  while (!tok) {
+    return node;
+  }
+  Node *ternary = new_node(ND_TERNARY, tok);
+  ternary->cond = node;
+  ternary->then = expr();
+  expect(":");
+  ternary->els = conditional();
+  return ternary;
 }
 
 // logor = logand ("||" logand)*
