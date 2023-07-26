@@ -62,6 +62,8 @@ int count() {
 
 int param_decay(int x[]) { return 0[x]; }
 
+void voidfn() {}
+
 int main() {
   assert(8, ({
            int a = 3;
@@ -807,6 +809,8 @@ int main() {
   assert(8, ({ struct *foo; sizeof(foo); }), "struct *foo; sizeof(foo);");
   assert(4, ({ struct T *foo; struct T {int x;}; sizeof(struct T); }), "struct T *foo; struct T {int x;}; sizeof(struct T);");
   assert(1, ({ struct T { struct T *next; int x; } a; struct T b; b.x=1; a.next=&b; a.next->x; }), "struct T { struct T *next; int x; } a; struct T b; b.x=1; a.next=&b; a.next->x;");
+
+  voidfn();
 
   printf("OK\n");
   return 0;
