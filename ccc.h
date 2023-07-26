@@ -118,6 +118,10 @@ typedef enum {
   ND_BITXOR,     // ^
   ND_LOGAND,     // &&
   ND_LOGOR,      // ||
+  ND_SHL,        // <<
+  ND_SHR,        // >>
+  ND_A_SHL,      // <<=
+  ND_A_SHR,      // >>=
 } NodeKind;
 // AST node type
 typedef struct Node Node;
