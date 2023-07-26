@@ -20,6 +20,12 @@ Type* int_type() { return new_type(TY_INT, 4); }
 
 Type* long_type() { return new_type(TY_LONG, 8); }
 
+Type* struct_type() {
+  Type* ty = new_type(TY_STRUCT, 1);
+  ty->is_incomplete = true;
+  return ty;
+}
+
 Type* enum_type() { return new_type(TY_ENUM, 4); }
 
 Type* func_type(Type* return_ty) {
@@ -41,8 +47,11 @@ Type* array_of(Type* base, int size) {
   return ty;
 }
 
-int size_of(Type* ty) {
+int size_of(Type* ty, Token* tok) {
   assert(ty->kind != TY_VOID);
+  if (ty->is_incomplete) {
+    error_tok(tok, "incomplete type");
+  }
   switch (ty->kind) {
     case TY_BOOL:
     case TY_CHAR:
@@ -58,14 +67,14 @@ int size_of(Type* ty) {
       return 8;
     case TY_ARRAY:
       assert(ty->kind == TY_ARRAY);
-      return size_of(ty->base) * ty->array_size;
+      return size_of(ty->base, tok) * ty->array_size;
     default:
       assert(ty->kind == TY_STRUCT);
       Member* mem = ty->members;
       while (mem->next) {
         mem = mem->next;
       }
-      int end = mem->offset + size_of(mem->ty);
+      int end = mem->offset + size_of(mem->ty, mem->tok);
       return align_to(end, ty->align);
   }
 }
@@ -186,7 +195,7 @@ void visit(Node* node) {
     case ND_SIZEOF:
       node->kind = ND_NUM;
       node->ty = int_type();
-      node->val = size_of(node->lhs->ty);
+      node->val = size_of(node->lhs->ty, node->tok);
       node->lhs = NULL;
       return;
     case ND_STMT_EXPR: {

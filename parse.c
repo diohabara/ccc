@@ -5,6 +5,7 @@ typedef struct VarScope VarScope;
 struct VarScope {
   VarScope *next;
   char *name;
+  int depth;
   Var *var;
   Type *type_def;
   Type *enum_ty;
@@ -16,14 +17,37 @@ typedef struct TagScope TagScope;
 struct TagScope {
   TagScope *next;
   char *name;
+  int depth;
   Type *ty;
 };
+
+typedef struct {
+  VarScope *var_scope;
+  TagScope *tag_scope;
+} Scope;
 
 VarList *locals;
 VarList *globals;
 
 VarScope *var_scope;
 TagScope *tag_scope;
+int scope_depth;
+
+Node *current_switch;
+
+Scope *enter_scope() {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->var_scope = var_scope;
+  sc->tag_scope = tag_scope;
+  ++scope_depth;
+  return sc;
+}
+
+void leave_scope(Scope *sc) {
+  var_scope = sc->var_scope;
+  tag_scope = sc->tag_scope;
+  --scope_depth;
+}
 
 // Find a variable or a typedef by name.
 VarScope *find_var(Token *tok) {
@@ -81,15 +105,18 @@ VarScope *push_scope(char *name) {
   VarScope *sc = calloc(1, sizeof(VarScope));
   sc->name = name;
   sc->next = var_scope;
+  sc->depth = scope_depth;
   var_scope = sc;
   return sc;
 }
 
-Var *push_var(char *name, Type *ty, bool is_local) {
+Var *push_var(char *name, Type *ty, bool is_local, Token *tok) {
   Var *var = calloc(1, sizeof(Var));
   var->name = name;
   var->ty = ty;
   var->is_local = is_local;
+  var->tok = tok;
+
   VarList *vl = calloc(1, sizeof(VarList));
   vl->var = var;
   if (is_local) {
@@ -324,15 +351,23 @@ Type *abstract_declarator(Type *ty) {
   return type_suffix(ty);
 }
 
-// type-suffix = ("[" num "]" type-suffix)?
+// type-suffix = ("[" num? "]" type-suffix)?
 Type *type_suffix(Type *ty) {
   if (!consume("[")) {
     return ty;
   }
-  int sz = expect_number();
-  expect("]");
+
+  int sz = 0;
+  bool is_incomplete = true;
+  if (!consume("]")) {
+    sz = expect_number();
+    is_incomplete = false;
+    expect("]");
+  }
   ty = type_suffix(ty);
-  return array_of(ty, sz);
+  ty = array_of(ty, sz);
+  ty->is_incomplete = is_incomplete;
+  return ty;
 }
 
 // type-name = type-specifier abstract-declarator type-suffix
@@ -346,12 +381,12 @@ void push_tag_scope(Token *tok, Type *ty) {
   TagScope *sc = calloc(1, sizeof(TagScope));
   sc->next = tag_scope;
   sc->name = strndup(tok->str, tok->len);
+  sc->depth = scope_depth;
   sc->ty = ty;
   tag_scope = sc;
 }
 
-// struct-decl = "struct" ident
-//             | "struct" ident? "{" struct-member "}"
+// struct-decl = "struct" iden | "struct" ident? ()"{" struct-member "}")?
 Type *struct_decl() {
   // read struct tag
   expect("struct");
@@ -359,7 +394,9 @@ Type *struct_decl() {
   if (tag && !peek("{")) {
     TagScope *sc = find_tag(tag);
     if (!sc) {
-      error_tok(tag, "unknown struct type");
+      Type *ty = struct_type();
+      push_tag_scope(tag, ty);
+      return ty;
     }
     if (sc->ty->kind != TY_STRUCT) {
       error_tok(tag, "not a struct tag");
@@ -367,7 +404,30 @@ Type *struct_decl() {
     return sc->ty;
   }
 
-  expect("{");
+  // "struct *st" is legal C that defines st as a pointer to an unamed
+  // incomplete struct type
+  if (!consume("{")) {
+    return struct_type();
+  }
+
+  TagScope *sc = find_tag(tag);
+  Type *ty;
+
+  if (sc && sc->depth == scope_depth) {
+    // if no existing tag has the same tag in the same block scope, it's a
+    // refinition
+    if (sc->ty->kind != TY_STRUCT) {
+      error_tok(tag, "not a struct tag");
+    }
+    ty = sc->ty;
+  } else {
+    // register a struct type as an incomplete type early, so you can write
+    // recursive structs such as "struct T { struct T *next; }"
+    ty = struct_type();
+    if (tag) {
+      push_tag_scope(tag, ty);
+    }
+  }
 
   // read struct members
   Member head;
@@ -379,8 +439,6 @@ Type *struct_decl() {
     cur = cur->next;
   }
 
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_STRUCT;
   ty->members = head.next;
 
   // Assign offsets within the struct to members
@@ -388,16 +446,13 @@ Type *struct_decl() {
   for (Member *mem = ty->members; mem; mem = mem->next) {
     offset = align_to(offset, mem->ty->align);
     mem->offset = offset;
-    offset += size_of(mem->ty);
+    offset += size_of(mem->ty, mem->tok);
     if (ty->align < mem->ty->align) {
       ty->align = mem->ty->align;
     }
   }
 
-  // register the struct type if a name was given
-  if (tag) {
-    push_tag_scope(tag, ty);
-  }
+  ty->is_incomplete = false;
   return ty;
 }
 
@@ -452,6 +507,7 @@ Type *enum_specifier() {
 // struct-member = type-specifier declarator type-suffix ";"
 Member *struct_member() {
   Type *ty = type_specifier();
+  Token *tok = token;
   char *name = NULL;
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
@@ -460,16 +516,25 @@ Member *struct_member() {
   Member *mem = calloc(1, sizeof(Member));
   mem->name = name;
   mem->ty = ty;
+  mem->tok = tok;
   return mem;
 }
 
 VarList *read_func_param() {
   Type *ty = type_specifier();
   char *name = NULL;
+  Token *tok = token;
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
 
-  Var *var = push_var(name, ty, true);
+  /* "array of T" is converted to "poitner to T" only in the parameter context.
+   * For example, *argv[] is converted to **argv by this.
+   */
+  if (ty->kind == TY_ARRAY) {
+    ty = pointer_to(ty->base);
+  }
+
+  Var *var = push_var(name, ty, true, tok);
   push_scope(name)->var = var;
 
   VarList *vl = calloc(1, sizeof(VarList));
@@ -500,10 +565,11 @@ Function *function() {
 
   Type *ty = type_specifier();
   char *name = NULL;
+  Token *tok = token;
   ty = declarator(ty, &name);
 
   // Add a function type to the scope
-  Var *var = push_var(name, func_type(ty), false);
+  Var *var = push_var(name, func_type(ty), false, tok);
   push_scope(name)->var = var;
 
   // construct a function object
@@ -535,22 +601,24 @@ Function *function() {
 void global_var() {
   Type *ty = type_specifier();
   char *name = NULL;
+  Token *tok = token;
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
   expect(";");
 
-  Var *var = push_var(name, ty, false);
+  Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;
 }
 
 // declaration = type-specifier declarator type-suffix ("=" expr)? ";"
 //             = type-specifier ";"
 Node *declaration() {
-  Token *tok = token;
+  Token *tok = tok;
   Type *ty = type_specifier();
-  if (consume(";")) {
+  if (tok = consume(";")) {
     return new_node(ND_NULL, tok);
   }
+  tok = token;
   char *name = NULL;
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
@@ -568,9 +636,9 @@ Node *declaration() {
 
   Var *var;
   if (ty->is_static) {
-    var = push_var(new_label(), ty, false);
+    var = push_var(new_label(), ty, false, tok);
   } else {
-    var = push_var(name, ty, true);
+    var = push_var(name, ty, true, tok);
   }
   push_scope(name)->var = var;
   if (consume(";")) {
@@ -598,9 +666,16 @@ bool is_typename() {
 
 // stmt = "return" expr ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "switch" "(" expr ")" stmt
+//      | "case" num ":" stmt
+//      | "default" ":" stmt
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" (expr? ";" | declaration) expr? ";" expr? ")" stmt
 //      | "{" stmt* "}"
+//      | "break" ";"
+//      | "continue" ";"
+//      | "goto" ident ";"
+//      | ident ":" stmt
 //      | declaration
 //      | expr ";"
 Node *stmt() {
@@ -631,8 +706,7 @@ Node *stmt() {
     Node *node = new_node(ND_FOR, tok);
     expect("(");
 
-    VarScope *sc1 = var_scope;
-    TagScope *sc2 = tag_scope;
+    Scope *sc = enter_scope();
 
     if (!consume(";")) {
       if (is_typename()) {
@@ -652,8 +726,7 @@ Node *stmt() {
     }
     node->then = stmt();
 
-    var_scope = sc1;
-    tag_scope = sc2;
+    leave_scope(sc);
     return node;
   }
   if (tok = consume("{")) {
@@ -661,17 +734,72 @@ Node *stmt() {
     head.next = NULL;
     Node *cur = &head;
 
-    VarScope *sc1 = var_scope;
-    TagScope *sc2 = tag_scope;
+    Scope *sc = enter_scope();
     while (!consume("}")) {
       cur->next = stmt();
       cur = cur->next;
     }
-    var_scope = sc1;
-    tag_scope = sc2;
+    leave_scope(sc);
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
+  }
+  if (tok = consume("break")) {
+    expect(";");
+    return new_node(ND_BREAK, tok);
+  }
+  if (tok = consume("continue")) {
+    expect(";");
+    return new_node(ND_CONTINUE, tok);
+  }
+  if (tok = consume("goto")) {
+    Node *node = new_node(ND_GOTO, tok);
+    node->label_name = expect_ident();
+    expect(";");
+    return node;
+  }
+  if (tok = consume("switch")) {
+    Node *node = new_node(ND_SWITCH, tok);
+    expect("(");
+    node->cond = expr();
+    expect(")");
+
+    Node *sw = current_switch;
+    current_switch = node;
+    node->then = stmt();
+    current_switch = sw;
+    return node;
+  }
+  if (tok = consume("case")) {
+    if (!current_switch) {
+      error_tok(tok, "stray case");
+    }
+    int val = expect_number();
+    expect(":");
+
+    Node *node = new_unary(ND_CASE, stmt(), tok);
+    node->val = val;
+    node->case_next = current_switch->case_next;
+    current_switch->case_next = node;
+    return node;
+  }
+  if (tok = consume("default")) {
+    if (!current_switch) {
+      error_tok(tok, "stray default");
+    }
+    expect(":");
+
+    Node *node = new_unary(ND_CASE, stmt(), tok);
+    current_switch->default_case = node;
+    return node;
+  }
+  if (tok = consume_ident()) {
+    if (consume(":")) {
+      Node *node = new_unary(ND_LABEL, stmt(), tok);
+      node->label_name = strndup(tok->str, tok->len);
+      return node;
+    }
+    token = tok;
   }
   if (is_typename()) {
     return declaration();
@@ -916,8 +1044,7 @@ Node *postfix() {
 //
 // statement expression is a GNU C extension
 Node *stmt_expr(Token *tok) {
-  VarScope *sc1 = var_scope;
-  TagScope *sc2 = tag_scope;
+  Scope *sc = enter_scope();
   Node *node = new_node(ND_STMT_EXPR, tok);
   node->body = stmt();
   Node *cur = node->body;
@@ -928,8 +1055,7 @@ Node *stmt_expr(Token *tok) {
   }
   expect(")");
 
-  var_scope = sc1;
-  tag_scope = sc2;
+  leave_scope(sc);
 
   if (cur->kind != ND_EXPR_STMT) {
     error_tok(cur->tok, "stmt expr returning void is not supporsed");
@@ -973,7 +1099,7 @@ Node *primary() {
       if (is_typename()) {
         Type *ty = type_name();
         expect(")");
-        return new_num(size_of(ty), tok);
+        return new_num(size_of(ty, tok), tok);
       }
       token = tok->next;
     }
@@ -1012,7 +1138,7 @@ Node *primary() {
     token = token->next;
 
     Type *ty = array_of(char_type(), tok->cont_len);
-    Var *var = push_var(new_label(), ty, false);
+    Var *var = push_var(new_label(), ty, false, NULL);
     var->contents = tok->contents;
     var->cont_len = tok->cont_len;
     return new_var(var, tok);

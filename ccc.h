@@ -54,6 +54,7 @@ typedef struct Var Var;
 struct Var {
   char *name;     // Variable name
   Type *ty;       // Type
+  Token *tok;     // for error message
   bool is_local;  // local or global
   // local variable
   int offset;  // Offset from RBP
@@ -84,6 +85,12 @@ typedef enum {
   ND_WHILE,      // "while"
   ND_FOR,        // "for"
   ND_BLOCK,      // { ... }
+  ND_BREAK,      // "break"
+  ND_CONTINUE,   // "continue"
+  ND_GOTO,       // "goto"
+  ND_LABEL,      // Labeled statement
+  ND_SWITCH,     // "switch"
+  ND_CASE,       // "case"
   ND_FUNCALL,    // Function call
   ND_EXPR_STMT,  // Expression statement
   ND_STMT_EXPR,  // statement expression
@@ -132,6 +139,13 @@ struct Node {
   // Function call
   char *funcname;
   Node *args;
+  // Goto or labeled statement
+  char *label_name;
+  // switch-cases
+  Node *case_next;
+  Node *default_case;
+  int case_label;
+  int case_end_label;
   Var *var;  // Used if kind == ND_VAR
   long val;  // Used if kind == ND_NUM
   // Struct member access
@@ -173,19 +187,21 @@ typedef enum {
 } TypeKind;
 struct Type {
   TypeKind kind;
-  bool is_typedef;  // typedef
-  bool is_static;   // static
-  int align;        // alignment
-  Type *base;       // pointer or array
-  int array_size;   // array
-  Member *members;  // struct
-  Type *return_ty;  // function
+  bool is_typedef;     // typedef
+  bool is_static;      // static
+  bool is_incomplete;  // incomplete array
+  int align;           // alignment
+  Type *base;          // pointer or array
+  int array_size;      // array
+  Member *members;     // struct
+  Type *return_ty;     // function
 };
 
 // Struct member
 struct Member {
   Member *next;
   Type *ty;
+  Token *tok;
   char *name;
   int offset;
 };
@@ -197,10 +213,11 @@ Type *short_type();
 Type *int_type();
 Type *long_type();
 Type *enum_type();
+Type *struct_type();
 Type *func_type(Type *return_ty);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
-int size_of(Type *ty);
+int size_of(Type *ty, Token *tok);
 void add_type(Program *prog);
 
 //
