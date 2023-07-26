@@ -20,6 +20,12 @@ Type* int_type() { return new_type(TY_INT, 4); }
 
 Type* long_type() { return new_type(TY_LONG, 8); }
 
+Type* struct_type() {
+  Type* ty = new_type(TY_STRUCT, 1);
+  ty->is_incomplete = true;
+  return ty;
+}
+
 Type* enum_type() { return new_type(TY_ENUM, 4); }
 
 Type* func_type(Type* return_ty) {
