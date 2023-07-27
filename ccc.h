@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include <string.h>
 typedef struct Type Type;
 typedef struct Member Member;
+typedef struct Initializer Initializer;
 //
 // tokenize.c
 //
@@ -33,6 +35,7 @@ struct Token {
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
+void warn_tok(Token *tok, char *fmt, ...);
 Token *peek(char *s);
 Token *consume(char *op);
 char *strndup(char *p, int len);
@@ -59,8 +62,7 @@ struct Var {
   // local variable
   int offset;  // Offset from RBP
   // global variable
-  char *contents;
-  int cont_len;
+  Initializer *initializer;
 };
 typedef struct VarList VarList;
 struct VarList {
@@ -158,11 +160,27 @@ struct Node {
   Member *member;
 };
 
+// global variable initializer
+// global variable can be initialized either by a constant expression or a
+// pointer to another global variable
+struct Initializer {
+  Initializer *next;
+
+  // constant expression
+  int sz;
+  long val;
+
+  // reference to another global variable
+  char *label;
+  long addend;
+};
+
 typedef struct Function Function;
 struct Function {
   Function *next;
   char *name;
   VarList *params;
+  bool is_static;
   Node *node;
   VarList *locals;
   int stack_size;

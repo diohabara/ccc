@@ -17,3 +17,4 @@ tmp*
 
 # for debug
 test
+.gdb_history

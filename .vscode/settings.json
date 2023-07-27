@@ -1,8 +1,13 @@
 {
   "files.associations": {
     "*.v": "coq",
+    "*.asm": "gas",
+    "*.ts": "typescript",
+    "*.pl": "prolog",
+    "*.plt": "prolog",
     "stdbool.h": "c",
-    "tests": "cpp"
+    "tests": "cpp",
+    "initializer_list": "c"
   },
   "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
 }

@@ -160,6 +160,8 @@ Node *declaration();
 bool is_typename();
 Node *stmt();
 Node *expr();
+long eval(Node *node);
+long eval2(Node *node, Var **var);
 long const_expr();
 Node *assign();
 Node *conditional();
@@ -190,7 +192,7 @@ bool is_function() {
   return isfunc;
 }
 
-// program = (global_var | function)*
+// program = (global-var | function)*
 Program *program() {
   Function head;
   head.next = NULL;
@@ -550,6 +552,13 @@ VarList *read_func_params() {
   if (consume(")")) {
     return NULL;
   }
+
+  Token *tok = token;
+  if (consume("void") && consume(")")) {
+    return NULL;
+  }
+  token = tok;
+
   VarList *head = read_func_param();
   VarList *cur = head;
 
@@ -562,7 +571,7 @@ VarList *read_func_params() {
 }
 
 // function = type-specifier declarator "(" params? ")" ("{" stmt* "}" | ";")
-// params = param ("," param)*
+// params = param ("," param)* | "void"
 // param = type-specifier declarator type-suffix
 Function *function() {
   locals = NULL;
@@ -579,6 +588,7 @@ Function *function() {
   // construct a function object
   Function *fn = calloc(1, sizeof(Function));
   fn->name = name;
+  fn->is_static = ty->is_static;
   expect("(");
   fn->params = read_func_params();
 
@@ -601,19 +611,6 @@ Function *function() {
   return fn;
 }
 
-// global_var = type-specifier declarator type-suffix ";"
-void global_var() {
-  Type *ty = type_specifier();
-  char *name = NULL;
-  Token *tok = token;
-  ty = declarator(ty, &name);
-  ty = type_suffix(ty);
-  expect(";");
-
-  Var *var = push_var(name, ty, false, tok);
-  push_scope(name)->var = var;
-}
-
 // Initializer list can end either with "}" or "," followed by "}" to allow a
 // trailing comm. This function returns true if it looks like we are at the end
 // of an initializer list
@@ -624,20 +621,180 @@ bool peek_end() {
   return ret;
 }
 
-void expect_end() {
+bool consume_end() {
   Token *tok = token;
-  if (consume(",") && consume("}")) {
-    return;
+  if (consume("}") || consume(",") && consume("}")) {
+    return true;
   }
   token = tok;
   expect("}");
+  return false;
+}
+
+void skip_excess_elements2() {
+  for (;;) {
+    if (consume("{")) {
+      skip_excess_elements2();
+    } else {
+      assign();
+    }
+    if (consume_end()) {
+      return;
+    }
+    expect(",");
+  }
+}
+
+void skip_excess_elements() {
+  expect(",");
+  warn_tok(token, "excess elements in initalizer");
+  skip_excess_elements2();
+}
+
+Initializer *new_init_val(Initializer *cur, int sz, int val) {
+  Initializer *init = calloc(1, sizeof(Initializer));
+  init->sz = sz;
+  init->val = val;
+  cur->next = init;
+  return init;
+}
+
+Initializer *new_init_label(Initializer *cur, char *label, long addend) {
+  Initializer *init = calloc(1, sizeof(Initializer));
+  init->label = label;
+  init->addend = addend;
+  cur->next = init;
+  return init;
+}
+
+Initializer *new_init_zero(Initializer *cur, int nbytes) {
+  for (int i = 0; i < nbytes; i++) {
+    cur = new_init_val(cur, 1, 0);
+  }
+  return cur;
+}
+
+Initializer *gvar_init_string(char *p, int len) {
+  Initializer head;
+  head.next = NULL;
+  Initializer *cur = &head;
+  for (int i = 0; i < len; i++) {
+    cur = new_init_val(cur, 1, p[i]);
+  }
+  return head.next;
+}
+
+Initializer *emit_struct_padding(Initializer *cur, Type *parent, Member *mem) {
+  int end = mem->offset + size_of(mem->ty, token);
+
+  int padding;
+  if (mem->next) {
+    padding = mem->next->offset - end;
+  } else {
+    padding = size_of(parent, token) - end;
+  }
+
+  if (padding) {
+    cur = new_init_zero(cur, padding);
+  }
+  return cur;
+}
+
+Initializer *gvar_initializer(Initializer *cur, Type *ty) {
+  Token *tok = token;
+  if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
+      token->kind == TK_STR) {
+    token = token->next;
+    if (ty->is_incomplete) {
+      ty->array_size = tok->cont_len;
+      ty->is_incomplete = false;
+    }
+    int len = (ty->array_size < tok->cont_len) ? ty->array_size : tok->cont_len;
+    for (int i = 0; i < len; i++) {
+      cur = new_init_val(cur, 1, tok->contents[i]);
+    }
+    return new_init_zero(cur, ty->array_size - len);
+  }
+  if (ty->kind == TY_ARRAY) {
+    bool open = consume("{");
+    int i = 0;
+    int limit = ty->is_incomplete ? INT_MAX : ty->array_size;
+    do {
+      cur = gvar_initializer(cur, ty->base);
+      i++;
+    } while (i < limit && !peek_end() && consume(","));
+    if (open && !consume_end()) {
+      skip_excess_elements();
+    }
+    // Set excess array elements to zero.
+    cur = new_init_zero(cur, size_of(ty->base, tok) * (ty->array_size - i));
+    if (ty->is_incomplete) {
+      ty->array_size = i;
+      ty->is_incomplete = false;
+    }
+    return cur;
+  }
+  if (ty->kind == TY_STRUCT) {
+    bool open = consume("{");
+    Member *mem = ty->members;
+    do {
+      cur = gvar_initializer(cur, mem->ty);
+      cur = emit_struct_padding(cur, ty, mem);
+      mem = mem->next;
+    } while (mem && !peek_end() && consume(","));
+    if (open && !consume_end()) {
+      skip_excess_elements();
+    }
+    // Set excess struct elements to zero.
+    if (mem) {
+      int sz = size_of(ty, tok) - mem->offset;
+      if (sz) {
+        cur = new_init_zero(cur, sz);
+      }
+    }
+    return cur;
+  }
+  bool open = consume("{");
+  Node *expr = conditional();
+  if (open) {
+    expect("}");
+  }
+
+  Var *var = NULL;
+  long addend = eval2(expr, &var);
+  if (var) {
+    return new_init_label(cur, var->name, addend);
+  }
+  return new_init_val(cur, size_of(ty, token), addend);
+}
+
+// global-var
+// = type-specifier declarator type-suffix ("=" gvar-initializer)? ";"
+void global_var() {
+  Type *ty = type_specifier();
+  char *name = NULL;
+  Token *tok = token;
+  ty = declarator(ty, &name);
+  ty = type_suffix(ty);
+
+  Var *var = push_var(name, ty, false, tok);
+  push_scope(name)->var = var;
+
+  if (consume("=")) {
+    Initializer head;
+    head.next = NULL;
+    gvar_initializer(&head, ty);
+    var->initializer = head.next;
+  }
+  expect(";");
 }
 
 typedef struct Designator Designator;
 
 struct Designator {
   Designator *next;
-  int idx;
+  int idx;      // array
+  Member *mem;  // struct
 };
 
 // Creates a node for an array access. For example, if var represents next a
@@ -650,6 +807,11 @@ Node *new_desg_node2(Var *var, Designator *desg) {
   }
 
   Node *node = new_desg_node2(var, desg->next);
+  if (desg->mem) {
+    node = new_unary(ND_MEMBER, node, desg->mem->tok);
+    node->member_name = desg->mem->name;
+    return node;
+  }
   node = new_binary(ND_ADD, node, new_num(desg->idx, tok), tok);
   return new_unary(ND_DEREF, node, tok);
 }
@@ -660,6 +822,21 @@ Node *new_desg_node(Var *var, Designator *desg, Node *rhs) {
   return new_unary(ND_EXPR_STMT, node, rhs->tok);
 }
 
+<<<<<<< HEAD
+=======
+Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
+  if (ty->kind == TY_ARRAY) {
+    for (int i = 0; i < ty->array_size; i++) {
+      Designator desg2 = {desg, i++, NULL};
+      cur = lvar_init_zero(cur, var, ty->base, &desg2);
+    }
+    return cur;
+  }
+  cur->next = new_desg_node(var, desg, new_num(0, token));
+  return cur->next;
+}
+
+>>>>>>> 7145500 (wip)
 // lvar-initializer = assign
 //                  | "{" lvar-initializer ("," lvar-initializer)* ","? "}"
 // An initializer for a local variable is expanded to multiple assignments.
@@ -673,22 +850,118 @@ Node *new_desg_node(Var *var, Designator *desg, Node *rhs) {
 // x[1][0] = 4;
 // x[1][1] = 5;
 // x[1][2] = 6;
+<<<<<<< HEAD
+=======
+//
+// There are few special rules for ambiguous initalizers and shorthand
+// notations:
+// - if an initializer list is shorter than an array, excess array elements are
+// initialized with 0
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> 7145500 (wip)
+=======
+//
+// A char array can be initialized with a string literal. E.g.,
+// char x[4] = "foo" is equivalent to char x[4] = {'f', 'o', 'o', '\0'}
+>>>>>>> 4765fbc (wip)
+=======
+// - a char array can be initialized with a string literal. E.g.,
+// char x[4] = "foo" is equivalent to char x[4] = {'f', 'o', 'o', '\0'}
+// - if a rhs is an incomplete array, its size is set by counting the number of
+// times on the rhs. E.g.,
+// x in int x[] = {1, 2, 3} has type int[3]
+>>>>>>> 81ce31e (wip)
 Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
-  Token *tok = consume("{");
-  if (!tok) {
-    cur->next = new_desg_node(var, desg, assign());
-    return cur->next;
-  }
-  if (ty->kind == TY_ARRAY) {
-    int i = 0;
-    do {
-      Designator desg2 = {desg, i++};
-      cur = lvar_initializer(cur, var, ty->base, &desg2);
-    } while (!peek_end() && consume(","));
-    expect_end();
+  if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
+      token->kind == TK_STR) {
+    // initialize a char array with a string literal
+    Token *tok = token;
+    token = token->next;
+
+    if (ty->is_incomplete) {
+      ty->array_size = tok->cont_len;
+      ty->is_incomplete = false;
+    }
+
+    int len = (ty->array_size < tok->cont_len) ? ty->array_size : tok->cont_len;
+    int i;
+
+    for (i = 0; i < len; i++) {
+      Designator desg2 = {desg, i, NULL};
+      Node *rhs = new_num(tok->contents[i], tok);
+      cur->next = new_desg_node(var, &desg2, rhs);
+      cur = cur->next;
+    }
+
+    for (; i < ty->array_size; i++) {
+      Designator desg2 = {desg, i, NULL};
+      cur = lvar_init_zero(cur, var, ty->base, &desg2);
+    }
     return cur;
   }
-  error_tok(tok, "invalid array intializer");
+
+  if (ty->kind == TY_ARRAY) {
+    bool open = consume("{");
+    int i = 0;
+    int limit = ty->is_incomplete ? INT_MAX : ty->array_size;
+    do {
+      Designator desg2 = {desg, i++, NULL};
+      cur = lvar_initializer(cur, var, ty->base, &desg2);
+<<<<<<< HEAD
+    } while (!peek_end() && consume(","));
+    expect_end();
+<<<<<<< HEAD
+=======
+
+    // set excess array elemenets to zero
+=======
+    } while (i < limit && !peek_end() && consume(","));
+    if (open) consume_end();
+    // set excessive array elements to zero
+>>>>>>> 5279ec5 (wip)
+    while (i < ty->array_size) {
+      Designator desg2 = {desg, i++, NULL};
+      cur = lvar_init_zero(cur, var, ty->base, &desg2);
+    }
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> 7145500 (wip)
+=======
+
+=======
+>>>>>>> 5279ec5 (wip)
+    if (ty->is_incomplete) {
+      ty->array_size = i;
+      ty->is_incomplete = false;
+    }
+>>>>>>> 81ce31e (wip)
+    return cur;
+  }
+  if (ty->kind == TY_STRUCT) {
+    bool open = consume("{");
+    Member *mem = ty->members;
+    do {
+      Designator desg2 = {desg, 0, mem};
+      cur = lvar_initializer(cur, var, mem->ty, &desg2);
+      mem = mem->next;
+    } while (mem && !peek_end() && consume(","));
+    if (open && !consume_end()) {
+      skip_excess_elements();
+    }
+    // set excessive struct elements to zero
+    for (; mem; mem = mem->next) {
+      Designator desg2 = {desg, 0, mem};
+      cur = lvar_init_zero(cur, var, mem->ty, &desg2);
+    }
+    return cur;
+  }
+  bool open = consume("{");
+  cur->next = new_desg_node(var, desg, assign());
+  if (open) {
+    expect("}");
+  }
+  return cur->next;
 }
 
 // declaration
@@ -907,12 +1180,18 @@ Node *expr() {
   return node;
 }
 
-long eval(Node *node) {
+long eval(Node *node) { eval2(node, NULL); }
+
+long eval2(Node *node, Var **var) {
   switch (node->kind) {
-    case ND_ADD:
-      return eval(node->lhs) + eval(node->rhs);
-    case ND_SUB:
-      return eval(node->lhs) - eval(node->rhs);
+    case ND_ADD: {
+      long lhs = eval2(node->lhs, var);
+      return lhs + eval2(node->rhs, var);
+    }
+    case ND_SUB: {
+      long lhs = eval2(node->lhs, var);
+      return lhs - eval2(node->rhs, var);
+    }
     case ND_MUL:
       return eval(node->lhs) * eval(node->rhs);
     case ND_DIV:
@@ -949,6 +1228,18 @@ long eval(Node *node) {
       return eval(node->lhs) || eval(node->rhs);
     case ND_NUM:
       return node->val;
+    case ND_ADDR:
+      if (!var || *var || node->lhs->kind != ND_VAR) {
+        error_tok(node->tok, "invalid initializer");
+      }
+      *var = node->lhs->var;
+      return 0;
+    case ND_VAR:
+      if (!var || *var || node->var->ty->kind != TY_ARRAY) {
+        error_tok(node->tok, "invalid initializer");
+      }
+      *var = node->var;
+      return 0;
   }
   error_tok(node->tok, "not a constant expression");
 }
@@ -1312,8 +1603,7 @@ Node *primary() {
 
     Type *ty = array_of(char_type(), tok->cont_len);
     Var *var = push_var(new_label(), ty, false, NULL);
-    var->contents = tok->contents;
-    var->cont_len = tok->cont_len;
+    var->initializer = gvar_init_string(tok->contents, tok->cont_len);
     return new_var(var, tok);
   }
   if (tok->kind != TK_NUM) {
