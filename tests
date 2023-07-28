@@ -871,15 +871,10 @@ int main() {
   assert(4, ({ int x[2][3]={{1,2,3},{4,5,6}}; x[1][0]; }), "int x[2][3]={{1,2,3},{4,5,6}}; x[1][0];");
   assert(6, ({ int x[2][3]={{1,2,3},{4,5,6}}; x[1][2]; }), "int x[2][3]={{1,2,3},{4,5,6}}; x[1][2];");
 
-<<<<<<< HEAD
-=======
   assert(2, ({ int x[2][3]={{1,2}}; x[0][1]; }), "int x[2][3]={{1,2}}; x[0][1];");
   assert(0, ({ int x[2][3]={{1,2}}; x[1][0]; }), "int x[2][3]={{1,2}}; x[1][0];");
   assert(0, ({ int x[2][3]={{1,2}}; x[1][2]; }), "int x[2][3]={{1,2}}; x[1][2];");
 
-<<<<<<< HEAD
->>>>>>> 7145500 (wip)
-=======
   assert('a', ({ char x[4]="abc"; x[0]; }), "char x[4]=\"abc\"; x[0]; }");
   assert('c', ({ char x[4]="abc"; x[2]; }), "char x[4]=\"abc\"; x[2]; }");
   assert(0, ({ char x[4]="abc"; x[3]; }), "char x[4]=\"abc\"; x[3]; }");
@@ -888,16 +883,10 @@ int main() {
   assert('d', ({ char x[2][4]={"abc","def"}; x[1][0]; }), "char x[2][4]=\"abc\",\"def\"}; x[1][0]; }");
   assert('f', ({ char x[2][4]={"abc","def"}; x[1][2]; }), "char x[2][4]=\"abc\",\"def\"}; x[1][2]; }");
  
-<<<<<<< HEAD
->>>>>>> 4765fbc (wip)
-=======
   assert(4, ({ int x[]={1,2,3,4}; x[3]; }), "int x[]={1,2,3,4}; x[3];");
   assert(16, ({ int x[]={1,2,3,4}; sizeof(x); }), "int x[]={1,2,3,4}; sizeof(x);");
   assert(4, ({ char x[]="foo"; sizeof(x); }), "char x[]=\"foo\"; sizeof(x); }");
 
-<<<<<<< HEAD
->>>>>>> 81ce31e (wip)
-=======
   assert(1, ({ struct {int a; int b; int c;} x={1,2,3}; x.a; }), "struct {int a; int b; int c;} x={1,2,3}; x.a;");
   assert(2, ({ struct {int a; int b; int c;} x={1,2,3}; x.b; }), "struct {int a; int b; int c;} x={1,2,3}; x.b;");
   assert(3, ({ struct {int a; int b; int c;} x={1,2,3}; x.c; }), "struct {int a; int b; int c;} x={1,2,3}; x.c;");
@@ -910,9 +899,6 @@ int main() {
   assert(4, ({ struct {int a; int b;} x[2]={{1,2},{3,4}}; x[1].b; }), "struct {int a; int b;} x[2]={{1,2},{3,4}}; x[1].b;");
   assert(0, ({ struct {int a; int b;} x[2]={{1,2}}; x[1].b; }), "struct {int a; int b;} x[2]={{1,2}}; x[1].b;");
 
-<<<<<<< HEAD
->>>>>>> 0726817 (wip)
-=======
   assert(3, g3, "g3");
   assert(4, g4, "g4");
   assert(5, g5, "g5");
@@ -920,9 +906,6 @@ int main() {
   assert(5, *g7, "*g7");
   assert(0, strcmp(g8, "abc"), "strcmp(g8, \"abc\")");
 
-<<<<<<< HEAD
->>>>>>> c7b736a (wip)
-=======
   assert(0, g9[0], "g9[0]");
   assert(1, g9[1], "g9[1]");
   assert(2, g9[2], "g9[2]");
@@ -939,9 +922,6 @@ int main() {
   assert(3, g12[1].a[0], "g12[1].a[0]");
   assert(4, g12[1].a[1], "g12[1].a[1]");
 
-<<<<<<< HEAD
->>>>>>> e95cc8b (wip)
-=======
   assert(1, g13[0].a[0], "g13[0].a[0]");
   assert(2, g13[0].a[1], "g13[0].a[1]");
   assert(3, g13[1].a[0], "g13[1].a[0]");
@@ -958,9 +938,6 @@ int main() {
   assert(0, strcmp(g16[0], "foo"), "strcmp(g16[0], \"foo\")");
   assert(0, strcmp(g16[1], "bar"), "strcmp(g16[1], \"bar\")");
 
-<<<<<<< HEAD
->>>>>>> 5279ec5 (wip)
-=======
   assert(7, sizeof(g17), "sizeof(g17)");
   assert(10, sizeof(g18), "sizeof(g18)");
   assert(3, sizeof(g19), "sizeof(g19)");
@@ -968,16 +945,12 @@ int main() {
   assert(0, memcmp(g18, "foobar\0\0\0", 10), "memcmp(g18, \"foobar\\0\\0\\0\", 10)");
   assert(0, memcmp(g19, "foo", 3), "memcmp(g19, \"foo\", 3)");
 
-<<<<<<< HEAD
->>>>>>> e41a858 (wip)
-=======
   assert(0, strcmp(g20, "foobar"), "strcmp(g20, \"foobar\")");
   assert(0, strcmp(g21, "bar"), "strcmp(g21, \"bar\")");
   assert(0, strcmp(g22+3, "foobar"), "strcmp(g22+3, \"foobar\")");
   assert(3, g23, "g23");
   assert(3, *g24, "*g24");
 
->>>>>>> 476fdf4 (wip)
   printf("OK\n");
   return 0;
 }

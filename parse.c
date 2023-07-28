@@ -822,8 +822,6 @@ Node *new_desg_node(Var *var, Designator *desg, Node *rhs) {
   return new_unary(ND_EXPR_STMT, node, rhs->tok);
 }
 
-<<<<<<< HEAD
-=======
 Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
   if (ty->kind == TY_ARRAY) {
     for (int i = 0; i < ty->array_size; i++) {
@@ -836,7 +834,6 @@ Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
   return cur->next;
 }
 
->>>>>>> 7145500 (wip)
 // lvar-initializer = assign
 //                  | "{" lvar-initializer ("," lvar-initializer)* ","? "}"
 // An initializer for a local variable is expanded to multiple assignments.
@@ -850,28 +847,16 @@ Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
 // x[1][0] = 4;
 // x[1][1] = 5;
 // x[1][2] = 6;
-<<<<<<< HEAD
-=======
 //
 // There are few special rules for ambiguous initalizers and shorthand
 // notations:
 // - if an initializer list is shorter than an array, excess array elements are
 // initialized with 0
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 7145500 (wip)
-=======
-//
-// A char array can be initialized with a string literal. E.g.,
-// char x[4] = "foo" is equivalent to char x[4] = {'f', 'o', 'o', '\0'}
->>>>>>> 4765fbc (wip)
-=======
 // - a char array can be initialized with a string literal. E.g.,
 // char x[4] = "foo" is equivalent to char x[4] = {'f', 'o', 'o', '\0'}
 // - if a rhs is an incomplete array, its size is set by counting the number of
 // times on the rhs. E.g.,
 // x in int x[] = {1, 2, 3} has type int[3]
->>>>>>> 81ce31e (wip)
 Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
   if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
       token->kind == TK_STR) {
@@ -908,34 +893,17 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
     do {
       Designator desg2 = {desg, i++, NULL};
       cur = lvar_initializer(cur, var, ty->base, &desg2);
-<<<<<<< HEAD
-    } while (!peek_end() && consume(","));
-    expect_end();
-<<<<<<< HEAD
-=======
-
-    // set excess array elemenets to zero
-=======
     } while (i < limit && !peek_end() && consume(","));
     if (open) consume_end();
     // set excessive array elements to zero
->>>>>>> 5279ec5 (wip)
     while (i < ty->array_size) {
       Designator desg2 = {desg, i++, NULL};
       cur = lvar_init_zero(cur, var, ty->base, &desg2);
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 7145500 (wip)
-=======
-
-=======
->>>>>>> 5279ec5 (wip)
     if (ty->is_incomplete) {
       ty->array_size = i;
       ty->is_incomplete = false;
     }
->>>>>>> 81ce31e (wip)
     return cur;
   }
   if (ty->kind == TY_STRUCT) {
