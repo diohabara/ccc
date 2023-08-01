@@ -212,6 +212,7 @@ struct Type {
   TypeKind kind;
   bool is_typedef;     // typedef
   bool is_static;      // static
+  bool is_extern;      // extern
   bool is_incomplete;  // incomplete array
   int align;           // alignment
   Type *base;          // pointer or array

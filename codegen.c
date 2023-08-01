@@ -553,6 +553,9 @@ void emit_data(Program *prog) {
   printf(".data\n");
   for (VarList *vl = prog->globals; vl; vl = vl->next) {
     Var *var = vl->var;
+    if (var->ty->is_extern) {
+      continue;
+    }
     printf("%s:\n", var->name);
     if (!var->initializer) {
       printf("  .zero %d\n", size_of(var->ty, var->tok));

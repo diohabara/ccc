@@ -93,6 +93,9 @@ void voidfn(void) {}
 
 static int static_fn(void) {}
 
+extern int ext1;
+extern int *ext2;
+
 int main() {
   assert(8, ({
            int a = 3;
@@ -950,6 +953,9 @@ int main() {
   assert(0, strcmp(g22+3, "foobar"), "strcmp(g22+3, \"foobar\")");
   assert(3, g23, "g23");
   assert(3, *g24, "*g24");
+
+  assert(5, ext1, "ext1");
+  assert(5, *ext2, "*ext2");
 
   printf("OK\n");
   return 0;

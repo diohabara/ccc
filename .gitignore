@@ -17,6 +17,9 @@ tmp*
 
 # for debug
 test
+ext
+test.*
+ext.*
 .gdb_history
 
 # stages

@@ -224,7 +224,8 @@ Program *program() {
 //                | "short" | "short" "int" | "int" "short"
 //                | "int"
 //                | "long" | "long" "int" | "int" "long"
-// note that "typedef" and "static" can appear anywhere in a function body.
+// note that "typedef", "static", and "extern" can appear anywhere in a function
+// body.
 Type *type_specifier() {
   if (!is_typename(token)) {
     error_tok(token, "typename expected");
@@ -244,6 +245,7 @@ Type *type_specifier() {
 
   bool is_typedef = false;
   bool is_static = false;
+  bool is_extern = false;
 
   for (;;) {
     // read one token at a time
@@ -252,6 +254,8 @@ Type *type_specifier() {
       is_typedef = true;
     } else if (consume("static")) {
       is_static = true;
+    } else if (consume("extern")) {
+      is_extern = true;
     } else if (consume("void")) {
       base_type += VOID;
     } else if (consume("_Bool")) {
@@ -318,6 +322,7 @@ Type *type_specifier() {
   }
   ty->is_typedef = is_typedef;
   ty->is_static = is_static;
+  ty->is_extern = is_extern;
   return ty;
 }
 
@@ -772,10 +777,12 @@ Initializer *gvar_initializer(Initializer *cur, Type *ty) {
 // = type-specifier declarator type-suffix ("=" gvar-initializer)? ";"
 void global_var() {
   Type *ty = type_specifier();
+  bool is_extern = ty->is_extern;
   char *name = NULL;
   Token *tok = token;
   ty = declarator(ty, &name);
   ty = type_suffix(ty);
+  ty->is_extern = is_extern;
 
   Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;
@@ -989,7 +996,8 @@ Node *read_expr_stmt() {
 bool is_typename() {
   return peek("typedef") || peek("void") || peek("_Bool") || peek("char") ||
          peek("short") || peek("int") || peek("long") || peek("struct") ||
-         peek("enum") || peek("static") || find_typedef(token);
+         peek("enum") || peek("static") || peek("extern") ||
+         find_typedef(token);
 }
 
 // stmt = "return" expr ";"
