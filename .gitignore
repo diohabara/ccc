@@ -18,3 +18,8 @@ tmp*
 # for debug
 test
 .gdb_history
+
+# stages
+stage1/
+stage2/
+stage3/

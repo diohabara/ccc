@@ -7,12 +7,27 @@ ccc: $(OBJS)
 
 $(OBJS): ccc.h
 
+STAGES = stage1 stage2 stage3
+
+define PROCESS_STAGE_RULE
+$(1)/%.c: %.c
+	mkdir -p $(1)
+	gcc -E $$< | grep -v '^#' > $$@
+endef
+
+$(foreach stage,$(STAGES),$(eval $(call PROCESS_STAGE_RULE,$(stage))))
+
+PROCESSED_SRCS = $(foreach stage,$(STAGES),$(addprefix $(stage)/,$(SRCS)))
+
+process: $(PROCESSED_SRCS)
+
 help:
-	@echo "Usage: make [lint|test|debug|clean]"
+	@echo "Usage: make [lint|test|debug|clean|process]"
 	@echo "  lint: run c and shell checker"
 	@echo "  test: run tests"
 	@echo "  debug: run tests in debug mode"
 	@echo "  clean: remove object files"
+	@echo "  process: run the preprocessor on all source files for each stage"
 
 lint:
 	clang-format -i ./*.c
@@ -33,4 +48,4 @@ testx:
 clean:
 	rm -f ccc *.o *~ tmp*
 
-.PHONY: help lint test lean
+.PHONY: help lint test clean process
