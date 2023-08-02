@@ -16,9 +16,10 @@ tmp*
 *.vsix
 
 # for debug
-test
+.vscode/
+tests
 ext
-test.*
+test.s
 ext.*
 .gdb_history
 
@@ -26,3 +27,4 @@ ext.*
 stage1/
 stage2/
 stage3/
+Makefile

@@ -1,3 +1,64 @@
+#ifdef __ccc_self__
+
+typedef int bool;
+typedef int size_t;
+typedef void FILE;
+typedef void *va_list;
+
+#define SEEK_SET 0
+#define SEEK_END 2
+
+struct _reent {
+  int _errno;
+  void *_stdin;
+  void *_stdout;
+  void *_stderr;
+};
+
+extern struct _reent *_impure_ptr;
+
+#define stdin (_impure_ptr->_stdin)
+#define stderr (_impure_ptr->_stderr)
+
+extern int errno;
+
+#define __attribute__(x)
+#define noreturn
+
+#define NULL (0)
+#define true (1)
+#define false (0)
+#define static
+
+#define assert(x) 1
+
+int printf();
+int fopen();
+int strncmp();
+int strlen();
+int fprintf();
+char *strerror();
+int vsnprintf();
+int vfprintf();
+void *calloc();
+int isalnum();
+int isspace();
+int snprintf();
+int strstr();
+int strchr();
+int isdigit();
+int strtol();
+void exit();
+int fseek();
+int ftell();
+int fread();
+int fclose();
+int realloc();
+int ferror();
+int feof();
+
+#else
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -7,6 +68,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#endif
 typedef struct Type Type;
 typedef struct Member Member;
 typedef struct Initializer Initializer;

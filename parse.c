@@ -179,6 +179,8 @@ Node *cast();
 Node *unary();
 Node *postfix();
 Node *primary();
+Initializer *gvar_initializer(Initializer *cur, Type *ty);
+VarList *read_func_params();
 
 bool is_function() {
   Token *tok = token;
@@ -217,6 +219,78 @@ Program *program() {
   return prog;
 }
 
+// global-var
+// = type-specifier declarator type-suffix ("=" gvar-initializer)? ";"
+void global_var() {
+  Type *ty = type_specifier();
+  bool is_extern = ty->is_extern;
+  char *name = NULL;
+  Token *tok = token;
+  ty = declarator(ty, &name);
+  ty = type_suffix(ty);
+  ty->is_extern = is_extern;
+
+  // // TODO: write tyepdef here
+  // if (ty->is_typedef) {
+  //   expect(";");
+  //   ty->is_typedef = false;
+  //   push_scope(name)->type_def = ty;
+  //   return;
+  // }
+
+  Var *var = push_var(name, ty, false, tok);
+  push_scope(name)->var = var;
+
+  if (consume("=")) {
+    Initializer head;
+    head.next = NULL;
+    gvar_initializer(&head, ty);
+    var->initializer = head.next;
+  }
+  expect(";");
+}
+
+// function = type-specifier declarator "(" params? ")" ("{" stmt* "}" | ";")
+// params = param ("," param)* | "void"
+// param = type-specifier declarator type-suffix
+Function *function() {
+  locals = NULL;
+
+  Type *ty = type_specifier();
+  char *name = NULL;
+  Token *tok = token;
+  ty = declarator(ty, &name);
+
+  // Add a function type to the scope
+  Var *var = push_var(name, func_type(ty), false, tok);
+  push_scope(name)->var = var;
+
+  // construct a function object
+  Function *fn = calloc(1, sizeof(Function));
+  fn->name = name;
+  fn->is_static = ty->is_static;
+  expect("(");
+  fn->params = read_func_params();
+
+  if (consume(";")) {
+    return NULL;
+  }
+
+  // read function body
+  Node head;
+  head.next = NULL;
+  Node *cur = &head;
+  expect("{");
+  while (!consume("}")) {
+    cur->next = stmt();
+    cur = cur->next;
+  }
+
+  fn->node = head.next;
+  fn->locals = locals;
+  return fn;
+}
+
 // type-specifier = builtin-type | struct-decl | typedef-name | enum-specifier
 // builtin-type   = "void"
 //                | "_Bool"
@@ -238,6 +312,7 @@ Type *type_specifier() {
     SHORT = 1 << 7,
     INT = 1 << 9,
     LONG = 1 << 11,
+    UNSIGNED = 1 << 13,
   };
 
   int base_type = 0;
@@ -256,6 +331,8 @@ Type *type_specifier() {
       is_static = true;
     } else if (consume("extern")) {
       is_extern = true;
+    } else if (consume("const")) {
+      continue;
     } else if (consume("void")) {
       base_type += VOID;
     } else if (consume("_Bool")) {
@@ -268,6 +345,8 @@ Type *type_specifier() {
       base_type += INT;
     } else if (consume("long")) {
       base_type += LONG;
+    } else if (consume("unsigned")) {
+      base_type += UNSIGNED;
     } else if (peek("struct")) {
       if (base_type || user_type) {
         break;
@@ -575,47 +654,6 @@ VarList *read_func_params() {
   return head;
 }
 
-// function = type-specifier declarator "(" params? ")" ("{" stmt* "}" | ";")
-// params = param ("," param)* | "void"
-// param = type-specifier declarator type-suffix
-Function *function() {
-  locals = NULL;
-
-  Type *ty = type_specifier();
-  char *name = NULL;
-  Token *tok = token;
-  ty = declarator(ty, &name);
-
-  // Add a function type to the scope
-  Var *var = push_var(name, func_type(ty), false, tok);
-  push_scope(name)->var = var;
-
-  // construct a function object
-  Function *fn = calloc(1, sizeof(Function));
-  fn->name = name;
-  fn->is_static = ty->is_static;
-  expect("(");
-  fn->params = read_func_params();
-
-  if (consume(";")) {
-    return NULL;
-  }
-
-  // read function body
-  Node head;
-  head.next = NULL;
-  Node *cur = &head;
-  expect("{");
-  while (!consume("}")) {
-    cur->next = stmt();
-    cur = cur->next;
-  }
-
-  fn->node = head.next;
-  fn->locals = locals;
-  return fn;
-}
-
 // Initializer list can end either with "}" or "," followed by "}" to allow a
 // trailing comm. This function returns true if it looks like we are at the end
 // of an initializer list
@@ -771,29 +809,6 @@ Initializer *gvar_initializer(Initializer *cur, Type *ty) {
     return new_init_label(cur, var->name, addend);
   }
   return new_init_val(cur, size_of(ty, token), addend);
-}
-
-// global-var
-// = type-specifier declarator type-suffix ("=" gvar-initializer)? ";"
-void global_var() {
-  Type *ty = type_specifier();
-  bool is_extern = ty->is_extern;
-  char *name = NULL;
-  Token *tok = token;
-  ty = declarator(ty, &name);
-  ty = type_suffix(ty);
-  ty->is_extern = is_extern;
-
-  Var *var = push_var(name, ty, false, tok);
-  push_scope(name)->var = var;
-
-  if (consume("=")) {
-    Initializer head;
-    head.next = NULL;
-    gvar_initializer(&head, ty);
-    var->initializer = head.next;
-  }
-  expect(";");
 }
 
 typedef struct Designator Designator;
@@ -995,9 +1010,9 @@ Node *read_expr_stmt() {
 
 bool is_typename() {
   return peek("typedef") || peek("void") || peek("_Bool") || peek("char") ||
-         peek("short") || peek("int") || peek("long") || peek("struct") ||
-         peek("enum") || peek("static") || peek("extern") ||
-         find_typedef(token);
+         peek("unsigned") || peek("short") || peek("int") || peek("long") ||
+         peek("struct") || peek("enum") || peek("static") || peek("extern") ||
+         peek("const") || find_typedef(token);
 }
 
 // stmt = "return" expr ";"
