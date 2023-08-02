@@ -95,6 +95,8 @@ static int static_fn(void) {}
 
 extern int ext1;
 extern int *ext2;
+int ext_fn1(int x);
+extern int ext_fn2(int x);
 
 int main() {
   assert(8, ({
@@ -956,6 +958,8 @@ int main() {
 
   assert(5, ext1, "ext1");
   assert(5, *ext2, "*ext2");
+  assert(6, ext_fn1(6), "ext_fn1(6)");
+  assert(7, ext_fn2(7), "ext_fn2(7)");
 
   printf("OK\n");
   return 0;

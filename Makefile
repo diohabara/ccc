@@ -26,7 +26,8 @@ test: ccc
 	./ccc tests > tmp.s
 	echo 'int char_fn() { return 257; }' | gcc -xc -c -o tmp2.o -
 	echo 'int ext1 = 5; int *ext2 = &ext1;' | gcc -xc -c -o tmp3.o -
-	gcc -static -o tmp tmp.s tmp2.o tmp3.o
+	echo 'int ext_fn1(int x) { return x; }; int ext_fn2(int x) { return x;}' | gcc -xc -c -o tmp4.o -
+	gcc -static -o tmp tmp.s tmp2.o tmp3.o tmp4.o
 	./tmp
 
 testx:
