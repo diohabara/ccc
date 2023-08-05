@@ -231,12 +231,12 @@ void global_var() {
   ty->is_extern = is_extern;
 
   // // TODO: write tyepdef here
-  // if (ty->is_typedef) {
-  //   expect(";");
-  //   ty->is_typedef = false;
-  //   push_scope(name)->type_def = ty;
-  //   return;
-  // }
+  if (ty->is_typedef) {
+    expect(";");
+    ty->is_typedef = false;
+    push_scope(name)->type_def = ty;
+    return;
+  }
 
   Var *var = push_var(name, ty, false, tok);
   push_scope(name)->var = var;

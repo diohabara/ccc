@@ -17,6 +17,7 @@ tmp*
 
 # for debug
 .vscode/
+t
 tests
 ext
 test.s
