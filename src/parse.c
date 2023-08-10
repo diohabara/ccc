@@ -233,7 +233,6 @@ void global_var() {
   // // TODO: write tyepdef here
   if (ty->is_typedef) {
     expect(";");
-    ty->is_typedef = false;
     push_scope(name)->type_def = ty;
     return;
   }
@@ -322,7 +321,7 @@ Type *type_specifier() {
   bool is_static = false;
   bool is_extern = false;
 
-  for (;;) {
+  while (is_typename()) {
     // read one token at a time
     Token *tok = token;
     if (consume("typedef")) {
@@ -362,9 +361,7 @@ Type *type_specifier() {
         break;
       }
       Type *ty = find_typedef(token);
-      if (!ty) {
-        break;
-      }
+      assert(ty);
       token = token->next;
       user_type = ty;
     }

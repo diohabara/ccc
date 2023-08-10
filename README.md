@@ -33,7 +33,7 @@ make help
 When you want to check/format source code,
 
 ```bash
-make lintx
+make lint
 ```
 
 ### test
@@ -41,7 +41,7 @@ make lintx
 When you want to see if the compiler is working,
 
 ```bash
-make testx
+make test
 ```
 
 ### debug
@@ -49,7 +49,7 @@ make testx
 If you want to debug interactively, use `gdb`.
 
 ```bash
-docker run -i --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --platform=linux/amd64 -v "${PWD}:/src" -w/src ccc bash -c "make; gdb ./ccc"
+gdb ./ccc
 ```
 
 If you want to debug `main() { a = 1; b = 2; return 3; }` in `gdb`,
@@ -65,6 +65,11 @@ When you want to remove object files,
 ```bash
 make clean
 ```
+
+## TODO
+
+- [ ] self host
+  - `make self-host`
 
 ## references
 
